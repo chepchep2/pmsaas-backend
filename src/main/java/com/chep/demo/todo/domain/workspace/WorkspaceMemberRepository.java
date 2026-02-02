@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember, Long> {
     @Query("""
@@ -15,6 +16,8 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
                 m.status = com.chep.demo.todo.domain.workspace.WorkspaceMember.Status.ACTIVE
             """)
     List<String> findActiveMemberEmails(@Param("workspaceId") Long workspaceId);
+
+    Optional<WorkspaceMember> findByWorkspaceIdAndUserId(Long workspaceId, Long userId);
 }
 
 // @Query(value = """

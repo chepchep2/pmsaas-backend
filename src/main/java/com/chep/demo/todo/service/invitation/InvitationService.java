@@ -140,8 +140,8 @@ public class InvitationService {
             WorkspaceMember member = workspace.addMember(user);
             return workspaceMemberRepository.saveAndFlush(member);
         } catch (DataIntegrityViolationException e) {
-            // -> 멤버를 그대로 결과 반환
-            throw new AlreadyWorkspaceMemberException("ALREADY MEMBER");
+            return workspaceMemberRepository.findByWorkspaceIdAndUserId(workspace.getId(), user.getId())
+                    .orElseThrow(() -> new IllegalStateException("Member already exists in database but could not be found"));
         }
     }
 
@@ -275,7 +275,11 @@ public class InvitationService {
         invitation.accept(email, now);
         invitationRepository.save(invitation);
 
-        inviteCodeUsageRepository.saveIfNotExists(InviteCodeUsage.record(inviteCodeEntity, member, now));
+        if (!inviteCodeUsageRepository.existsByWorkspaceMemberId(member.getId())) {
+            inviteCodeUsageRepository.save(
+                    InviteCodeUsage.record(inviteCodeEntity, member, now)
+            );
+        }
 
         return member;
     }

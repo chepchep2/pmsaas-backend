@@ -129,7 +129,7 @@ public class WorkspaceController {
     }
 
     @Operation(summary = "멤버 제거", description = "Owner가 특정 멤버를 제거합니다.")
-    @DeleteMapping("/{workspaceId}/members/{memberId}")
+    @DeleteMapping("/{workspaceId}/members/{workspaceMemberId}")
     ResponseEntity<Void> removeMember(@PathVariable Long workspaceId, @PathVariable Long workspaceMemberId) {
         Long userId = currentUserId();
         workspaceService.removeMember(workspaceId, userId, workspaceMemberId);

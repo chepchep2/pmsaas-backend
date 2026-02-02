@@ -16,3 +16,14 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
             """)
     List<String> findActiveMemberEmails(@Param("workspaceId") Long workspaceId);
 }
+
+// @Query(value = """
+//     SELECT wm.* FROM workspace_member wm
+//     JOIN user u ON wm.user_id = u.id
+//     WHERE wm.workspace_id = :workspaceId
+//         AND wm.status = :status
+//         AND MATCH(u.name, u.email) AGAINST(:keyword IN BOOLEAN MODE)
+//     ORDER BY wm.joined_at DESC
+//     LIMIT :limit
+//     """, nativeQuery = true)
+// List<WorkspaceMember> findWithFullTextSearch(...);

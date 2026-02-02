@@ -46,3 +46,8 @@ public class InvitationQueueConsumer {
         new Thread(this::startConsuming).start();
     }
 }
+
+// 지수 백오프란:
+// - 1번 실패: 1초 대기 후 재시도
+// - 2번 실패: 2초 대기 후 재시도
+// - 3번 실패: 4초 대기 후 재시도

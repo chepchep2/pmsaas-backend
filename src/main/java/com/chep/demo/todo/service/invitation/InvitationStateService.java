@@ -12,15 +12,15 @@ import java.util.Optional;
 
 @Transactional
 @Service
-public class InvitationEmailTxService {
+public class InvitationStateService {
     private final InvitationRepository invitationRepository;
 
-    public InvitationEmailTxService(
+    public InvitationStateService(
             InvitationRepository invitationRepository
     ) {
         this.invitationRepository = invitationRepository;
     }
-    private static final Logger log = LoggerFactory.getLogger(InvitationEmailTxService.class);
+    private static final Logger log = LoggerFactory.getLogger(InvitationStateService.class);
 
     public boolean tryMarkSending(Long invitationId) {
         Instant now = Instant.now();

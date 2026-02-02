@@ -16,21 +16,21 @@ import java.util.Optional;
 public class InvitationEmailService {
     private final ResendEmailSender resendEmailSender;
     private final InvitationLinkBuilder invitationLinkBuilder;
-    private final InvitationEmailTxService invitationEmailTxService;
+    private final InvitationStateService invitationStateService;
 
     public InvitationEmailService(
             ResendEmailSender resendEmailSender,
             InvitationLinkBuilder invitationLinkBuilder,
-            InvitationEmailTxService invitationEmailTxService) {
+            InvitationStateService invitationStateService) {
         this.resendEmailSender = resendEmailSender;
         this.invitationLinkBuilder = invitationLinkBuilder;
-        this.invitationEmailTxService = invitationEmailTxService;
+        this.invitationStateService = invitationStateService;
     }
     private static final Logger log = LoggerFactory.getLogger(InvitationEmailService.class);
 
     public void sendInvitationEmail(Long invitationId) {
         Instant now = Instant.now();
-        Optional<Invitation> optionalInvitation = invitationEmailTxService.getSendingInvitation(invitationId);
+        Optional<Invitation> optionalInvitation = invitationStateService.getSendingInvitation(invitationId);
         if (optionalInvitation.isEmpty()) {
             log.warn("Failed to get SENDING invitation: invitationId={} (already processed or not found)", invitationId);
             return;
@@ -38,7 +38,7 @@ public class InvitationEmailService {
         Invitation inv = optionalInvitation.get();
 
         if (inv.isExpired(now)) {
-            invitationEmailTxService.markCancelled(invitationId);
+            invitationStateService.markCancelled(invitationId);
             log.warn("Invitation expired, marked as CANCELLED: {}", invitationId);
             return;
         }
@@ -50,15 +50,15 @@ public class InvitationEmailService {
 
         try {
             resendEmailSender.send(inv.getSentEmail(), content.subject(), content.html());
-            invitationEmailTxService.markSent(invitationId, now);
+            invitationStateService.markSent(invitationId, now);
         } catch (WebClientResponseException e) {
             log.error("Resend API error. invitationId={}, status={}, body={}",
                     invitationId, e.getStatusCode(), e.getResponseBodyAsString(), e);
-            invitationEmailTxService.markFailed(invitationId);
+            invitationStateService.markFailed(invitationId);
         } catch(Exception e) {
             log.error("Failed to send invitation email. invitationId={}, email={}",
                     invitationId, inv.getSentEmail(), e);
-            invitationEmailTxService.markFailed(invitationId);
+            invitationStateService.markFailed(invitationId);
         }
     }
 }

@@ -139,6 +139,7 @@ public class InvitationService {
             WorkspaceMember member = workspace.addMember(user);
             return workspaceMemberRepository.saveAndFlush(member);
         } catch (DataIntegrityViolationException e) {
+            // -> 멤버를 그대로 결과 반환
             throw new AlreadyWorkspaceMemberException("ALREADY MEMBER");
         }
     }
@@ -252,6 +253,7 @@ public class InvitationService {
 
         if (!inviteCodeEntity.getWorkspace().getId().equals(workspaceId)) {
             throw new InviteCodeNotFoundException("Invite code not found in this workspace");
+            // InviteCodeWorkspaceMismatchException
         }
 
         return inviteCodeEntity;

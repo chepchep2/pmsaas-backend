@@ -14,6 +14,7 @@ import com.chep.demo.todo.exception.auth.UserNotFoundException;
 import com.chep.demo.todo.exception.invitation.AlreadyWorkspaceMemberException;
 import com.chep.demo.todo.exception.invitation.InvitationValidationException;
 import com.chep.demo.todo.exception.invitation.InviteCodeNotFoundException;
+import com.chep.demo.todo.exception.invitation.InviteCodeWorkspaceMismatchException;
 import com.chep.demo.todo.exception.workspace.WorkspaceNotFoundException;
 import com.chep.demo.todo.exception.workspace.WorkspacePolicyViolationException;
 import com.chep.demo.todo.service.invitation.event.InvitationsCreatedEvent;
@@ -252,8 +253,7 @@ public class InvitationService {
         inviteCodeEntity.ensureNotExpired(now);
 
         if (!inviteCodeEntity.getWorkspace().getId().equals(workspaceId)) {
-            throw new InviteCodeNotFoundException("Invite code not found in this workspace");
-            // InviteCodeWorkspaceMismatchException
+            throw new InviteCodeWorkspaceMismatchException("Invite code does not match this workspace");
         }
 
         return inviteCodeEntity;

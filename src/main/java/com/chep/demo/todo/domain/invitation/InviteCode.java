@@ -54,24 +54,30 @@ public class InviteCode {
         this.createdBy = requireCreator(createdBy);
         this.code = requireCode(code);
         this.expiresAt = requireExpiry(expiresAt);
-        this.createdAt = createdAt != null ? createdAt : Instant.now();
+        this.createdAt = requireCreatedAt(createdAt);
 
         if (!this.expiresAt.isAfter(this.createdAt)) {
             throw new InvitationValidationException("expiresAt must be after createdAt");
         }
     }
 
-    public static InviteCode create(Workspace workspace, User createdBy, int expiresInDays) {
+    private static Instant requireCreatedAt(Instant createdAt) {
+        if (createdAt == null) {
+            throw new InvitationValidationException("created must not be null");
+        }
+        return createdAt;
+    }
+
+    public static InviteCode create(Workspace workspace, User createdBy, int expiresInDays, Instant now) {
         validateExpirationDays(expiresInDays);
 
-        Instant now = Instant.now();
         Instant expiresAt = now.plus(Duration.ofDays(expiresInDays));
 
         return new InviteCode(workspace, createdBy, generateRandomCode(), expiresAt, now);
     }
 
-    public static InviteCode create(Workspace workspace, User createdBy) {
-        return create(workspace, createdBy, DEFAULT_EXPIRATION_DAYS);
+    public static InviteCode create(Workspace workspace, User createdBy, Instant now) {
+        return create(workspace, createdBy, DEFAULT_EXPIRATION_DAYS, now);
     }
 
     public static void validateExpirationDays(int expiresInDays) {

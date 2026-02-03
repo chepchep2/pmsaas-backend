@@ -11,9 +11,9 @@ import com.chep.demo.todo.dto.invitation.InvitationAcceptResult;
 import com.chep.demo.todo.dto.invitation.InvitationItem;
 import com.chep.demo.todo.dto.invitation.InvitationResult;
 import com.chep.demo.todo.exception.auth.UserNotFoundException;
-import com.chep.demo.todo.exception.invitation.AlreadyWorkspaceMemberException;
 import com.chep.demo.todo.exception.invitation.InvitationValidationException;
 import com.chep.demo.todo.exception.invitation.InviteCodeNotFoundException;
+import com.chep.demo.todo.exception.invitation.InviteCodeWorkspaceMismatchException;
 import com.chep.demo.todo.exception.workspace.WorkspaceNotFoundException;
 import com.chep.demo.todo.exception.workspace.WorkspacePolicyViolationException;
 import com.chep.demo.todo.service.invitation.event.InvitationsCreatedEvent;
@@ -22,6 +22,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
 
@@ -36,6 +37,7 @@ public class InvitationService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final InvitationLinkBuilder invitationLinkBuilder;
+    private final Clock clock;
 
     public InvitationService(
             InviteCodeRepository inviteCodeRepository,
@@ -45,7 +47,8 @@ public class InvitationService {
             InviteCodeUsageRepository inviteCodeUsageRepository,
             WorkspaceMemberRepository workspaceMemberRepository,
             ApplicationEventPublisher applicationEventPublisher,
-            InvitationLinkBuilder invitationLinkBuilder
+            InvitationLinkBuilder invitationLinkBuilder,
+            Clock clock
     ) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.invitationRepository = invitationRepository;
@@ -55,6 +58,7 @@ public class InvitationService {
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.applicationEventPublisher = applicationEventPublisher;
         this.invitationLinkBuilder = invitationLinkBuilder;
+        this.clock = clock;
     }
     private static final int EMAIL_MAX_COUNT = 20;
 
@@ -101,7 +105,7 @@ public class InvitationService {
     public InvitationAcceptResult acceptInvitation(Long workspaceId, String inviteCode, Long userId) {
         // 0. 입력 검증
         String code = validateAndNormalizeCode(inviteCode);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
 
         // 1. User 조회
         User user = loadUser(userId);
@@ -139,7 +143,8 @@ public class InvitationService {
             WorkspaceMember member = workspace.addMember(user);
             return workspaceMemberRepository.saveAndFlush(member);
         } catch (DataIntegrityViolationException e) {
-            throw new AlreadyWorkspaceMemberException("ALREADY MEMBER");
+            return workspaceMemberRepository.findByWorkspaceIdAndUserId(workspace.getId(), user.getId())
+                    .orElseThrow(() -> new IllegalStateException("Member already exists in database but could not be found"));
         }
     }
 
@@ -175,8 +180,8 @@ public class InvitationService {
     }
 
     private List<Invitation> createAndSaveInvitations(Workspace workspace, User owner, int effectiveExpires, List<String> targetEmails) {
-        Instant now = Instant.now();
-        InviteCode inviteCode = InviteCode.create(workspace, owner, effectiveExpires);
+        Instant now = Instant.now(clock);
+        InviteCode inviteCode = InviteCode.create(workspace, owner, effectiveExpires, now);
         inviteCodeRepository.save(inviteCode);
 
         List<Invitation> invitations = targetEmails.stream()
@@ -197,7 +202,7 @@ public class InvitationService {
     }
 
     private Invitation recreateInvitation(Workspace workspace, String normalizedEmail) {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
 
         invitationRepository.bulkCancelPendingOrSent(
                 workspace.getId(),
@@ -207,7 +212,7 @@ public class InvitationService {
 
         User owner = workspace.getOwner();
         InviteCode newCode = inviteCodeRepository.save(
-                InviteCode.create(workspace, owner, InviteCode.DEFAULT_EXPIRATION_DAYS)
+                InviteCode.create(workspace, owner, InviteCode.DEFAULT_EXPIRATION_DAYS, now)
         );
 
         return invitationRepository.save(
@@ -251,7 +256,7 @@ public class InvitationService {
         inviteCodeEntity.ensureNotExpired(now);
 
         if (!inviteCodeEntity.getWorkspace().getId().equals(workspaceId)) {
-            throw new InviteCodeNotFoundException("Invite code not found in this workspace");
+            throw new InviteCodeWorkspaceMismatchException("Invite code does not match this workspace");
         }
 
         return inviteCodeEntity;
@@ -273,7 +278,11 @@ public class InvitationService {
         invitation.accept(email, now);
         invitationRepository.save(invitation);
 
-        inviteCodeUsageRepository.saveIfNotExists(InviteCodeUsage.record(inviteCodeEntity, member, now));
+        if (!inviteCodeUsageRepository.existsByWorkspaceMemberId(member.getId())) {
+            inviteCodeUsageRepository.save(
+                    InviteCodeUsage.record(inviteCodeEntity, member, now)
+            );
+        }
 
         return member;
     }

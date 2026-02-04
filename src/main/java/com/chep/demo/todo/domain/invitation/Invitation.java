@@ -24,10 +24,10 @@ public class Invitation {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invite_code_id", nullable = false)
-    private InviteCode inviteCode;
+    private InvitationCode invitationCode;
 
     @NotNull
-    @Column(name = "sent_email", nullable = false, length = 320)
+    @Column(name = "sent_email", nullable = false, length = EMAIL_MAX_LENGTH)
     private String sentEmail;
 
     @NotNull
@@ -38,7 +38,7 @@ public class Invitation {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_user_id", nullable = false)
-    private User createdByUser;
+    private User createdBy;
 
     @NotNull
     @Column(name = "created_at", nullable = false)
@@ -55,66 +55,55 @@ public class Invitation {
 
     protected Invitation() {}
 
-    private Invitation(Builder builder) {
-        this.createdByUser = requireCreator(builder.createdByUser);
-        this.inviteCode = requireInviteCode(builder.inviteCode);
-        this.inviteCode.ensureNotExpired(Instant.now());
-        this.sentEmail = normalizeEmail(builder.sentEmail);
-        this.status = Status.PENDING;
-        this.createdAt = Instant.now();
+    private Invitation(
+            User createdBy,
+            InvitationCode inviteCode,
+            String sentEmail,
+            Status status,
+            Instant createdAt,
+            Instant sentAt,
+            Instant acceptedAt,
+            Instant expiredAt
+    ) {
+        this.createdBy = requireCreator(createdBy);
+        this.invitationCode = requireInviteCode(invitationCode);
+        this.sentEmail = normalizeEmail(sentEmail);
+        this.status = status;
+        this.createdAt = createdAt;
+        this.sentAt = sentAt;
+        this.acceptedAt = acceptedAt;
+        this.expiredAt = expiredAt;
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    public static Invitation create(User createdByUser, InvitationCode invitationCode, String sentEmail, Instant now) {
+        InvitationCode code = requireInviteCode(invitationCode);
+        code.ensureNotExpired(now);
 
-    public static class Builder {
-        private User createdByUser;
-        private String sentEmail;
-        private InviteCode inviteCode;
-
-        public Builder createdBy(User createdByUser) {
-            this.createdByUser = createdByUser;
-            return this;
-        }
-
-        public Builder sentEmail(String sentEmail) {
-            this.sentEmail = sentEmail;
-            return this;
-        }
-
-        public Builder inviteCode(InviteCode inviteCode) {
-            this.inviteCode = inviteCode;
-            return this;
-        }
-
-        public Invitation build() {
-            return new Invitation(this);
-        }
+        return new Invitation(createdByUser, code, sentEmail, Status.PENDING, now, null, null, null);
     }
 
     public boolean isExpired(Instant now) {
-        return status == Status.EXPIRED || inviteCode.isExpired(now);
+        return status == Status.EXPIRED || invitationCode.isExpired(now);
     }
 
-    public void markSent() {
-        requireStatus(Status.PENDING, "Only pending invitations can be marked as sent");
+    public void markSent(Instant now) {
+        requirePending();
         this.status = Status.SENT;
-        this.sentAt = Instant.now();
+        this.sentAt = now;
     }
 
-    public void accept(String acceptingEmail) {
+    public void accept(String acceptingEmail, Instant now) {
         requireStatus(Status.PENDING, Status.SENT);
-        inviteCode.ensureNotExpired(Instant.now());
+        invitationCode.ensureNotExpired(now);
         String normalized = normalizeEmail(acceptingEmail);
         if (!Objects.equals(this.sentEmail, normalized)) {
             throw new InvitationValidationException("Invitation can only be accepted by the invited email address");
         }
         this.status = Status.ACCEPTED;
-        this.acceptedAt = Instant.now();
+        this.acceptedAt = now;
     }
 
-    public void expire() {
+    public void expire(Instant now) {
         if (this.status == Status.ACCEPTED) {
             throw new InvitationStateException("Accepted invitations cannot expire");
         }
@@ -122,7 +111,7 @@ public class Invitation {
             return;
         }
         this.status = Status.EXPIRED;
-        this.expiredAt = Instant.now();
+        this.expiredAt = now;
     }
 
     public enum Status {
@@ -137,26 +126,26 @@ public class Invitation {
     }
 
     public User getCreatedByUser() {
-        return createdByUser;
+        return createdBy;
     }
 
     public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public Workspace getWorkspace() { return inviteCode.getWorkspace(); }
+    public Workspace getWorkspace() { return invitationCode.getWorkspace(); }
     public String getSentEmail() { return sentEmail; }
     public Status getStatus() { return status; }
-    public InviteCode getInviteCode() { return inviteCode; }
+    public InvitationCode getInviteCode() { return invitationCode; }
     public Instant getSentAt() { return sentAt; }
     public Instant getAcceptedAt() { return acceptedAt; }
     public Instant getExpiredAt() { return expiredAt; }
 
-    private static InviteCode requireInviteCode(InviteCode inviteCode) {
-        if (inviteCode == null) {
+    private static InvitationCode requireInviteCode(InvitationCode invitationCode) {
+        if (invitationCode == null) {
             throw new InvitationValidationException("inviteCode must not be null");
         }
-        return inviteCode;
+        return invitationCode;
     }
 
     private static User requireCreator(User user) {
@@ -184,9 +173,9 @@ public class Invitation {
         return normalized;
     }
 
-    private void requireStatus(Status allowedStatus, String message) {
-        if (this.status != allowedStatus) {
-            throw new InvitationStateException(message);
+    private void requirePending() {
+        if (this.status != Status.PENDING) {
+            throw new InvitationStateException("Only pending invitations can be marked as sent");
         }
     }
 

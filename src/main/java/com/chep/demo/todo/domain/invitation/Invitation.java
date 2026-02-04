@@ -60,7 +60,7 @@ public class Invitation {
 
     private Invitation(
             User createdBy,
-            InvitationCode inviteCode,
+            InvitationCode invitationCode,
             String sentEmail,
             Status status,
             Instant createdAt,
@@ -86,7 +86,7 @@ public class Invitation {
     }
 
     public boolean isExpired(Instant now) {
-        return status == Status.EXPIRED || invitationCode.isExpired(now);
+        return invitationCode.isExpired(now);
     }
 
     public void markSending(Instant now) {
@@ -156,7 +156,7 @@ public class Invitation {
     public Workspace getWorkspace() { return invitationCode.getWorkspace(); }
     public String getSentEmail() { return sentEmail; }
     public Status getStatus() { return status; }
-    public InvitationCode getInviteCode() { return invitationCode; }
+    public InvitationCode getInvitationCode() { return invitationCode; }
     public Instant getSentAt() { return sentAt; }
     public Instant getAcceptedAt() { return acceptedAt; }
     public Instant getExpiredAt() { return expiredAt; }

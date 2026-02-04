@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 @Entity
-@Table(name = "invite_codes")
+@Table(name = "invitation_codes")
 public class InvitationCode {
     public static final int DEFAULT_EXPIRATION_DAYS = 7;
     public static final int MIN_EXPIRATION_DAYS = 1;
@@ -54,11 +54,18 @@ public class InvitationCode {
         this.createdBy = requireCreator(createdBy);
         this.code = requireCode(code);
         this.expiresAt = requireExpiry(expiresAt);
-        this.createdAt = createdAt != null ? createdAt : Instant.now();
+        this.createdAt = requireCreatedAt(createdAt);
 
         if (!this.expiresAt.isAfter(this.createdAt)) {
             throw new InvitationValidationException("expiresAt must be after createdAt");
         }
+    }
+
+    private static Instant requireCreatedAt(Instant createdAt) {
+        if (createdAt == null) {
+            throw new InvitationValidationException("created must not be null");
+        }
+        return createdAt;
     }
 
     // TODO: application Layer에서 now 주입하도록 변경 후 이 주석 제거

@@ -67,8 +67,8 @@ public class InvitationService {
         Workspace workspace = loadWorkspaceForOwner(workspaceId, requesterUserId);
         User owner = workspace.getOwner();
 
-        int effectiveExpires = expiresInDays == null ? InviteCode.DEFAULT_EXPIRATION_DAYS : expiresInDays;
-        InviteCode.validateExpirationDays(effectiveExpires);
+        int effectiveExpires = expiresInDays == null ? InvitationCode.DEFAULT_EXPIRATION_DAYS : expiresInDays;
+        InvitationCode.validateExpirationDays(effectiveExpires);
 
         // 2. 이메일 정규화 + 필터링
         Set<String> activeEmails = new HashSet<>(
@@ -112,7 +112,7 @@ public class InvitationService {
         String email = Invitation.normalizeEmail(user.getEmail());
 
         // 2. InviteCode 조회 + 만료 체크
-        InviteCode inviteCodeEntity = validateInviteCode(code, workspaceId, now);
+        InvitationCode inviteCodeEntity = validateInviteCode(code, workspaceId, now);
 
         // 3. Invitation 조회
         Invitation invitation = loadInvitation(code, email);
@@ -181,11 +181,12 @@ public class InvitationService {
 
     private List<Invitation> createAndSaveInvitations(Workspace workspace, User owner, int effectiveExpires, List<String> targetEmails) {
         Instant now = Instant.now(clock);
-        InviteCode inviteCode = InviteCode.create(workspace, owner, effectiveExpires, now);
-        inviteCodeRepository.save(inviteCode);
+        InvitationCode invitationCode = InvitationCode.create(workspace, owner, effectiveExpires, now);
+
+        inviteCodeRepository.save(invitationCode);
 
         List<Invitation> invitations = targetEmails.stream()
-                .map(email -> Invitation.create(owner, inviteCode, email, now))
+                .map(email -> Invitation.create(owner, invitationCode, email, now))
                 .toList();
         invitations = invitationRepository.saveAll(invitations);
         return invitations;
@@ -211,8 +212,8 @@ public class InvitationService {
         );
 
         User owner = workspace.getOwner();
-        InviteCode newCode = inviteCodeRepository.save(
-                InviteCode.create(workspace, owner, InviteCode.DEFAULT_EXPIRATION_DAYS, now)
+        InvitationCode newCode = inviteCodeRepository.save(
+                InvitationCode.create(workspace, owner, InvitationCode.DEFAULT_EXPIRATION_DAYS, now)
         );
 
         return invitationRepository.save(
@@ -225,10 +226,10 @@ public class InvitationService {
                 .map(inv -> new InvitationItem(
                         inv.getId(),
                         inv.getSentEmail(),
-                        inv.getInviteCode().getCode(),
+                        inv.getInvitationCode().getCode(),
                         inv.getStatus().name(),
-                        inv.getInviteCode().getExpiresAt(),
-                        invitationLinkBuilder.buildInviteUrl(inv.getInviteCode().getCode()),
+                        inv.getInvitationCode().getExpiresAt(),
+                        invitationLinkBuilder.buildInviteUrl(inv.getInvitationCode().getCode()),
                         inv.getSentAt()
                 ))
                 .toList();
@@ -249,8 +250,8 @@ public class InvitationService {
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
     }
 
-    private InviteCode validateInviteCode(String code, Long workspaceId, Instant now) {
-        InviteCode inviteCodeEntity = inviteCodeRepository.findByCode(code)
+    private InvitationCode validateInviteCode(String code, Long workspaceId, Instant now) {
+        InvitationCode inviteCodeEntity = inviteCodeRepository.findByCode(code)
                 .orElseThrow(() -> new InviteCodeNotFoundException("Invite code not found"));
 
         inviteCodeEntity.ensureNotExpired(now);
@@ -263,7 +264,7 @@ public class InvitationService {
     }
 
     private Invitation loadInvitation(String code, String email) {
-        return invitationRepository.findByInviteCodeCodeAndSentEmail(code, email)
+        return invitationRepository.findByInvitationCodeCodeAndSentEmail(code, email)
                 .orElseThrow(() -> new InvitationValidationException("Invitation does not exist for this email"));
     }
 
@@ -272,7 +273,7 @@ public class InvitationService {
                 .orElseThrow(() -> new WorkspaceNotFoundException("Workspace not found"));
     }
 
-    private WorkspaceMember acceptAndJoin(Workspace workspace, User user, Invitation invitation, InviteCode inviteCodeEntity, String email, Instant now) {
+    private WorkspaceMember acceptAndJoin(Workspace workspace, User user, Invitation invitation, InvitationCode inviteCodeEntity, String email, Instant now) {
         WorkspaceMember member = saveMember(workspace, user);
 
         invitation.accept(email, now);

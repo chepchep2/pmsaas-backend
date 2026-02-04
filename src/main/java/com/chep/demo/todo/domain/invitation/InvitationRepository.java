@@ -11,12 +11,12 @@ import java.util.Optional;
 import java.util.Set;
 
 public interface InvitationRepository extends JpaRepository<Invitation, Long> {
-    Optional<Invitation> findByInviteCodeCodeAndSentEmail(String code, String sentEmail);
-    List<Invitation> findByInviteCodeWorkspaceIdAndSentEmailAndStatusIn(Long workspaceId, String sentEmail, List<Invitation.Status> statuses);
+    Optional<Invitation> findByInvitationCodeCodeAndSentEmail(String code, String sentEmail);
+    List<Invitation> findByInvitationCodeWorkspaceIdAndSentEmailAndStatusIn(Long workspaceId, String sentEmail, List<Invitation.Status> statuses);
     @Query("""
             SELECT i
             FROM Invitation i
-            JOIN FETCH i.inviteCode ic
+            JOIN FETCH i.invitationCode ic
             JOIN FETCH ic.workspace w
             WHERE i.id = :invitationId
             """)
@@ -29,7 +29,7 @@ public interface InvitationRepository extends JpaRepository<Invitation, Long> {
                 i.status = com.chep.demo.todo.domain.invitation.Invitation.Status.CANCELLED,
                 i.expiredAt = :now
             WHERE
-                i.inviteCode.workspace.id = :workspaceId
+                i.invitationCode.workspace.id = :workspaceId
             AND
                 i.sentEmail = :email
             AND
@@ -60,7 +60,7 @@ public interface InvitationRepository extends JpaRepository<Invitation, Long> {
             SELECT i.sentEmail
             FROM Invitation i
             WHERE
-                i.inviteCode.workspace.id = :workspaceId
+                i.invitationCode.workspace.id = :workspaceId
             AND
                 i.status In (
                 com.chep.demo.todo.domain.invitation.Invitation.Status.PENDING,

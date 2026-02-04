@@ -47,9 +47,9 @@ public class InvitationEmailService {
             return;
         }
 
-        String inviteUrl = invitationLinkBuilder.buildInviteUrl(inv.getInviteCode().getCode());
+        String inviteUrl = invitationLinkBuilder.buildInviteUrl(inv.getInvitationCode().getCode());
 
-        Workspace workspace = inv.getInviteCode().getWorkspace();
+        Workspace workspace = inv.getInvitationCode().getWorkspace();
         var content = InvitationEmailTemplate.invite(workspace.getName(), inviteUrl);
 
         try {

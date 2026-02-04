@@ -67,7 +67,7 @@ public class GlobalExceptionHandler {
             InvitationValidationException e,
             HttpServletRequest request
     ) {
-        log.error("Invitation validation failed. errorCode={}, path={}, message={}", ErrorCode.INVITATION_VALIDATION_FAILED, request.getRequestURI(), e.getMessage());
+        log.error("Invitation validation failed. errorCode={}, path={}, message={}", ErrorCode.INVITATION_VALIDATION_FAILED, request.getRequestURI(), e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(createErrorResponse(HttpStatus.BAD_REQUEST, ErrorCode.INVITATION_VALIDATION_FAILED, e.getMessage(), request));
     }

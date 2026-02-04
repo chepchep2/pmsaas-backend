@@ -1,11 +1,11 @@
 package com.chep.demo.todo.dto.invitation;
 
 import com.chep.demo.todo.domain.invitation.Invitation;
-import com.chep.demo.todo.domain.invitation.InviteCode;
+import com.chep.demo.todo.domain.invitation.InvitationCode;
 
 import java.util.List;
 
-public record InvitationSendResult(InviteCode inviteCode, List<Invitation> invitations) {
+public record InvitationSendResult(InvitationCode inviteCode, List<Invitation> invitations) {
     public static InvitationSendResult empty() {
         return new InvitationSendResult(null, List.of());
     }

@@ -11,8 +11,8 @@ import java.time.Duration;
 import java.time.Instant;
 
 @Entity
-@Table(name = "invitation_codes")
-public class InviteCode {
+@Table(name = "invite_codes")
+public class InvitationCode {
     public static final int DEFAULT_EXPIRATION_DAYS = 7;
     public static final int MIN_EXPIRATION_DAYS = 1;
     public static final int MAX_EXPIRATION_DAYS = 30;
@@ -47,36 +47,30 @@ public class InviteCode {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected InviteCode() {}
+    protected InvitationCode() {}
 
-    private InviteCode(Workspace workspace, User createdBy, String code, Instant expiresAt, Instant createdAt) {
+    private InvitationCode(Workspace workspace, User createdBy, String code, Instant expiresAt, Instant createdAt) {
         this.workspace = requireWorkspace(workspace);
         this.createdBy = requireCreator(createdBy);
         this.code = requireCode(code);
         this.expiresAt = requireExpiry(expiresAt);
-        this.createdAt = requireCreatedAt(createdAt);
+        this.createdAt = createdAt != null ? createdAt : Instant.now();
 
         if (!this.expiresAt.isAfter(this.createdAt)) {
             throw new InvitationValidationException("expiresAt must be after createdAt");
         }
     }
 
-    private static Instant requireCreatedAt(Instant createdAt) {
-        if (createdAt == null) {
-            throw new InvitationValidationException("created must not be null");
-        }
-        return createdAt;
-    }
-
-    public static InviteCode create(Workspace workspace, User createdBy, int expiresInDays, Instant now) {
+    // TODO: application Layer에서 now 주입하도록 변경 후 이 주석 제거
+    public static InvitationCode create(Workspace workspace, User createdBy, int expiresInDays, Instant now) {
         validateExpirationDays(expiresInDays);
 
         Instant expiresAt = now.plus(Duration.ofDays(expiresInDays));
 
-        return new InviteCode(workspace, createdBy, generateRandomCode(), expiresAt, now);
+        return new InvitationCode(workspace, createdBy, generateRandomCode(), expiresAt, now);
     }
 
-    public static InviteCode create(Workspace workspace, User createdBy, Instant now) {
+    public static InvitationCode create(Workspace workspace, User createdBy, Instant now) {
         return create(workspace, createdBy, DEFAULT_EXPIRATION_DAYS, now);
     }
 

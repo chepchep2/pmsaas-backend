@@ -1,22 +1,18 @@
 package com.chep.demo.todo.domain.invitation;
-
 import com.chep.demo.todo.domain.user.User;
 import com.chep.demo.todo.domain.workspace.Workspace;
 import com.chep.demo.todo.exception.invitation.InvitationValidationException;
 import com.chep.demo.todo.exception.invitation.InviteCodeExpiredException;
-import com.chep.demo.todo.exception.workspace.WorkspaceAccessDeniedException;
-import com.chep.demo.todo.exception.workspace.WorkspacePolicyViolationException;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Objects;
 
 @Entity
-@Table(name = "invitation_codes")
-public class InviteCode {
+@Table(name = "invite_codes")
+public class InvitationCode {
     public static final int DEFAULT_EXPIRATION_DAYS = 7;
     public static final int MIN_EXPIRATION_DAYS = 1;
     public static final int MAX_EXPIRATION_DAYS = 30;
@@ -40,7 +36,7 @@ public class InviteCode {
     private User createdBy;
 
     @NotNull
-    @Column(name = "code", nullable = false, length = 16, unique = true)
+    @Column(name = "code", nullable = false, length = CODE_LENGTH, unique = true)
     private String code;
 
     @NotNull
@@ -51,75 +47,31 @@ public class InviteCode {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected InviteCode() {}
+    protected InvitationCode() {}
 
-    private InviteCode(Builder builder) {
-        this.workspace = requireWorkspace(builder.workspace);
-        ensureInvitesAllowed(this.workspace);
-        this.createdBy = requireCreator(builder.createdBy);
-        ensureOwner(this.workspace, this.createdBy);
-        this.code = requireCode(builder.code);
-        this.expiresAt = requireExpiry(builder.expiresAt);
-        this.createdAt = builder.createdAt != null ? builder.createdAt : Instant.now();
+    private InvitationCode(Workspace workspace, User createdBy, String code, Instant expiresAt, Instant createdAt) {
+        this.workspace = requireWorkspace(workspace);
+        this.createdBy = requireCreator(createdBy);
+        this.code = requireCode(code);
+        this.expiresAt = requireExpiry(expiresAt);
+        this.createdAt = createdAt != null ? createdAt : Instant.now();
+
         if (!this.expiresAt.isAfter(this.createdAt)) {
             throw new InvitationValidationException("expiresAt must be after createdAt");
         }
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    public static class Builder {
-        private Workspace workspace;
-        private User createdBy;
-        private String code;
-        private Instant expiresAt;
-        private Instant createdAt;
-
-        public Builder workspace(Workspace workspace) {
-            this.workspace = workspace;
-            return this;
-        }
-
-        public Builder createdBy(User createdBy) {
-            this.createdBy = createdBy;
-            return this;
-        }
-
-        public Builder code(String code) {
-            this.code = code;
-            return this;
-        }
-
-        public Builder expiresAt(Instant expiresAt) {
-            this.expiresAt = expiresAt;
-            return this;
-        }
-
-        public Builder createdAt(Instant createdAt) {
-            this.createdAt = createdAt;
-            return this;
-        }
-
-        public InviteCode build() {
-            return new InviteCode(this);
-        }
-    }
-
-    public static InviteCode generate(Workspace workspace, User createdBy) {
-        return generate(workspace, createdBy, DEFAULT_EXPIRATION_DAYS);
-    }
-
-    public static InviteCode generate(Workspace workspace, User createdBy, int expiresInDays) {
+    // TODO: application Layer에서 now 주입하도록 변경 후 이 주석 제거
+    public static InvitationCode create(Workspace workspace, User createdBy, int expiresInDays, Instant now) {
         validateExpirationDays(expiresInDays);
-        Instant expiresAt = Instant.now().plus(Duration.ofDays(expiresInDays));
-        return InviteCode.builder()
-                .workspace(workspace)
-                .createdBy(createdBy)
-                .code(generateRandomCode())
-                .expiresAt(expiresAt)
-                .build();
+
+        Instant expiresAt = now.plus(Duration.ofDays(expiresInDays));
+
+        return new InvitationCode(workspace, createdBy, generateRandomCode(), expiresAt, now);
+    }
+
+    public static InvitationCode create(Workspace workspace, User createdBy, Instant now) {
+        return create(workspace, createdBy, DEFAULT_EXPIRATION_DAYS, now);
     }
 
     public static void validateExpirationDays(int expiresInDays) {
@@ -144,19 +96,15 @@ public class InviteCode {
     public Long getId() {
         return id;
     }
-
     public String getCode() {
         return code;
     }
-
     public Instant getExpiresAt() {
         return expiresAt;
     }
-
     public Workspace getWorkspace() {
         return workspace;
     }
-
     public User getCreatedBy() {
         return createdBy;
     }
@@ -168,10 +116,8 @@ public class InviteCode {
         return workspace;
     }
 
-    private static void ensureInvitesAllowed(Workspace workspace) {
-        if (workspace.isPersonal()) {
-            throw new WorkspacePolicyViolationException("Personal workspace cannot issue invitations");
-        }
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
     private static User requireCreator(User user) {
@@ -179,22 +125,6 @@ public class InviteCode {
             throw new InvitationValidationException("createdBy must not be null");
         }
         return user;
-    }
-
-    private static void ensureOwner(Workspace workspace, User creator) {
-        User owner = workspace.getOwner();
-        if (owner == null) {
-            throw new InvitationValidationException("workspace owner must be present");
-        }
-
-        Long ownerId = owner.getId();
-        Long creatorId = creator.getId();
-        boolean ownerMatchesById = ownerId != null && creatorId != null && Objects.equals(ownerId, creatorId);
-        boolean ownerMatchesByInstance = (ownerId == null || creatorId == null) && owner == creator;
-
-        if (!(ownerMatchesById || ownerMatchesByInstance)) {
-            throw new WorkspaceAccessDeniedException("Only the workspace owner can issue invitations");
-        }
     }
 
     private static String requireCode(String code) {

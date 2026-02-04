@@ -2,10 +2,8 @@ package com.chep.demo.todo.service.workspace;
 
 import com.chep.demo.todo.domain.user.User;
 import com.chep.demo.todo.domain.user.UserRepository;
-import com.chep.demo.todo.domain.workspace.Workspace;
-import com.chep.demo.todo.domain.workspace.WorkspaceMember;
-import com.chep.demo.todo.domain.workspace.WorkspaceMemberRepository;
-import com.chep.demo.todo.domain.workspace.WorkspaceRepository;
+import com.chep.demo.todo.domain.workspace.*;
+import com.chep.demo.todo.dto.workspace.UnifiedWorkspaceMemberCursorResponse;
 import com.chep.demo.todo.dto.workspace.WorkspaceMemberCursorResponse;
 import com.chep.demo.todo.dto.workspace.WorkspaceMemberResponse;
 import com.chep.demo.todo.exception.workspace.WorkspaceAccessDeniedException;
@@ -27,15 +25,18 @@ public class WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository;
 
     public WorkspaceService(
             WorkspaceRepository workspaceRepository,
             UserRepository userRepository,
-            WorkspaceMemberRepository workspaceMemberRepository
+            WorkspaceMemberRepository workspaceMemberRepository,
+            UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository
     ) {
         this.workspaceRepository = workspaceRepository;
         this.userRepository = userRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
+        this.unifiedWorkspaceMemberQueryRepository = unifiedWorkspaceMemberQueryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +70,19 @@ public class WorkspaceService {
         List<WorkspaceMember> resultMembers = hasNext ? members.subList(0, limit) : members;
 
         return buildResponse(resultMembers, hasNext);
+    }
+
+    @Transactional(readOnly = true)
+    public UnifiedWorkspaceMemberCursorResponse getUnifiedMembers(Long workspaceId, Long userId, Integer cursorTypePriority, Instant cursorSortAt, Long cursorRowId, String keyword, int limit) {
+        Workspace workspace = findWorkspaceId(workspaceId);
+        workspace.requireActiveMember(userId);
+
+        List<UnifiedWorkspaceMember> members = unifiedWorkspaceMemberQueryRepository.findWithCursor(workspaceId, cursorTypePriority, cursorSortAt, cursorRowId, keyword, limit + 1);
+
+        boolean hasNext = members.size() > limit;
+        List<UnifiedWorkspaceMember> resultMembers = hasNext ? members.subList(0, limit) : members;
+
+        return toResponseWithCursor(resultMembers, hasNext);
     }
 
     @Transactional(readOnly = true)
@@ -186,6 +200,29 @@ public class WorkspaceService {
                 hasNext,
                 cursorJoinedAt,
                 cursorMemberId
+        );
+    }
+
+    private UnifiedWorkspaceMemberCursorResponse toResponseWithCursor(List<UnifiedWorkspaceMember> resultMembers, boolean hasNext) {
+
+        Integer cursorTypePriority = null;
+        Instant cursorSortAt = null;
+        Long cursorRowId = null;
+
+        if (hasNext && !resultMembers.isEmpty()) {
+            UnifiedWorkspaceMember lastMember = resultMembers.get(resultMembers.size() - 1);
+
+            cursorTypePriority = lastMember.getType() == UnifiedWorkspaceMember.MemberType.MEMBER ? 0 : 1;
+            cursorSortAt = lastMember.getSortAt();
+            cursorRowId = lastMember.getRowId();
+        }
+
+        return new UnifiedWorkspaceMemberCursorResponse(
+                resultMembers,
+                hasNext,
+                cursorTypePriority,
+                cursorSortAt,
+                cursorRowId
         );
     }
 }

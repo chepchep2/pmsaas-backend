@@ -1,5 +1,6 @@
 package com.chep.demo.todo.controller.workspace;
 
+import com.chep.demo.todo.domain.workspace.UnifiedWorkspaceMember;
 import com.chep.demo.todo.domain.workspace.Workspace;
 import com.chep.demo.todo.domain.workspace.WorkspaceMember;
 import com.chep.demo.todo.dto.workspace.*;
@@ -110,6 +111,17 @@ public class WorkspaceController {
         }
         WorkspaceMemberCursorResponse responses = workspaceService.getMembers(workspaceId, userId, status, cursorInstant, cursorMemberId, keyword, limit);
         return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/{workspaceId}/members/unified")
+    public UnifiedWorkspaceMemberCursorResponse getUnifiedMembers(@PathVariable Long workspaceId,
+                                                          @RequestParam(required = false) Integer cursorTypePriority,
+                                                          @RequestParam(required = false) Instant cursorSortAt,
+                                                          @RequestParam(required = false) Long cursorRowId,
+                                                          @RequestParam(required = false) String keyword,
+                                                          @RequestParam(defaultValue = "20") int limit) {
+        Long userId = currentUserId();
+        return workspaceService.getUnifiedMembers(workspaceId, userId, cursorTypePriority, cursorSortAt, cursorRowId, keyword, limit);
     }
 
     @Operation(summary = "내 멤버십 정보", description = "해당 워크스페이스에서 내 역할과 상태를 조회합니다.")

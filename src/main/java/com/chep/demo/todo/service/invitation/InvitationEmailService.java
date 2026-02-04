@@ -6,7 +6,6 @@ import com.chep.demo.todo.service.email.InvitationEmailTemplate;
 import com.chep.demo.todo.service.email.ResendEmailSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -14,47 +13,52 @@ import java.time.Instant;
 import java.util.Optional;
 
 @Service
-public class InvitationEmailAsyncService {
+public class InvitationEmailService {
     private final ResendEmailSender resendEmailSender;
     private final InvitationLinkBuilder invitationLinkBuilder;
-    private final InvitationEmailTxService invitationEmailTxService;
+    private final InvitationStateService invitationStateService;
 
-    public InvitationEmailAsyncService(
+    public InvitationEmailService(
             ResendEmailSender resendEmailSender,
             InvitationLinkBuilder invitationLinkBuilder,
-            InvitationEmailTxService invitationEmailTxService
-    ) {
+            InvitationStateService invitationStateService) {
         this.resendEmailSender = resendEmailSender;
         this.invitationLinkBuilder = invitationLinkBuilder;
-        this.invitationEmailTxService = invitationEmailTxService;
+        this.invitationStateService = invitationStateService;
     }
-    private static final Logger log = LoggerFactory.getLogger(InvitationEmailAsyncService.class);
+    private static final Logger log = LoggerFactory.getLogger(InvitationEmailService.class);
 
-    @Async("mailExecutor")
     public void sendInvitationEmail(Long invitationId) {
         Instant now = Instant.now();
-        Optional<Invitation> optionalInvitation = invitationEmailTxService.getPendingInvitation(invitationId);
+        Optional<Invitation> optionalInvitation = invitationStateService.getSendingInvitation(invitationId);
         if (optionalInvitation.isEmpty()) {
+            log.warn("Failed to get SENDING invitation: invitationId={} (already processed or not found)", invitationId);
             return;
         }
         Invitation inv = optionalInvitation.get();
 
+        if (inv.isExpired(now)) {
+            invitationStateService.markCancelled(invitationId);
+            log.warn("Invitation expired, marked as CANCELLED: {}", invitationId);
+            return;
+        }
+
         String inviteUrl = invitationLinkBuilder.buildInviteUrl(inv.getInviteCode().getCode());
 
-        Workspace workspace = inv.getWorkspace();
+        Workspace workspace = inv.getInviteCode().getWorkspace();
         var content = InvitationEmailTemplate.invite(workspace.getName(), inviteUrl);
 
         try {
             resendEmailSender.send(inv.getSentEmail(), content.subject(), content.html());
-            invitationEmailTxService.markSent(invitationId, now);
+            invitationStateService.markSent(invitationId, now);
         } catch (WebClientResponseException e) {
             log.error("Resend API error. invitationId={}, status={}, body={}",
-                    invitationId, e.getStackTrace(), e.getResponseBodyAsString(), e);
-            invitationEmailTxService.markFailed(invitationId);
+                    invitationId, e.getStatusCode(), e.getResponseBodyAsString(), e);
+            invitationStateService.markFailed(invitationId);
         } catch(Exception e) {
             log.error("Failed to send invitation email. invitationId={}, email={}",
                     invitationId, inv.getSentEmail(), e);
-            invitationEmailTxService.markFailed(invitationId);
+            invitationStateService.markFailed(invitationId);
         }
     }
 }

@@ -70,7 +70,8 @@ public class InvitationService {
         Set<String> activeEmails = new HashSet<>(
                 workspaceMemberRepository.findActiveMemberEmails(workspaceId)
         );
-        List<String> targetEmails = filterTargetEmails(emails, activeEmails);
+        Set<String> pendingEmails = invitationRepository.findPendingOrSentEmails(workspaceId);
+        List<String> targetEmails = filterTargetEmails(emails, activeEmails, pendingEmails);
         if (targetEmails.isEmpty()) {
             return new InvitationResult(List.of());
         }
@@ -84,7 +85,6 @@ public class InvitationService {
     }
 
     public InvitationResult resendInvitation(Long workspaceId, Long requesterUserId, String email) {
-        Instant now = Instant.now();
         String normalizedEmail = Invitation.normalizeEmail(email);
         // 1. owner 체크
         Workspace workspace = loadWorkspaceForOwner(workspaceId, requesterUserId);
@@ -139,6 +139,7 @@ public class InvitationService {
             WorkspaceMember member = workspace.addMember(user);
             return workspaceMemberRepository.saveAndFlush(member);
         } catch (DataIntegrityViolationException e) {
+            // -> 멤버를 그대로 결과 반환
             throw new AlreadyWorkspaceMemberException("ALREADY MEMBER");
         }
     }
@@ -153,7 +154,7 @@ public class InvitationService {
         return workspace;
     }
 
-    private List<String> filterTargetEmails(List<String> emails, Set<String> activeEmails) {
+    private List<String> filterTargetEmails(List<String> emails, Set<String> activeEmails, Set<String> pendingEmails) {
         if (emails == null || emails.isEmpty()) {
             throw new InvitationValidationException("emails must not be empty");
         }
@@ -170,6 +171,7 @@ public class InvitationService {
 
         return normalized.stream()
                 .filter(e -> !activeEmails.contains(e))
+                .filter(e -> !pendingEmails.contains(e))
                 .toList();
     }
 
@@ -251,6 +253,7 @@ public class InvitationService {
 
         if (!inviteCodeEntity.getWorkspace().getId().equals(workspaceId)) {
             throw new InviteCodeNotFoundException("Invite code not found in this workspace");
+            // InviteCodeWorkspaceMismatchException
         }
 
         return inviteCodeEntity;

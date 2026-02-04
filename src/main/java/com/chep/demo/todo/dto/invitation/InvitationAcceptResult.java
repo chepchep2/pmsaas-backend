@@ -1,19 +1,9 @@
 package com.chep.demo.todo.dto.invitation;
 
-import com.chep.demo.todo.domain.workspace.Workspace;
-import com.chep.demo.todo.domain.workspace.WorkspaceMember;
+import java.time.Instant;
 
-public record InvitationAcceptResult(AcceptStatus status, Workspace workspace, WorkspaceMember member) {
-    public static InvitationAcceptResult joined(Workspace workspace, WorkspaceMember member) {
-        return new InvitationAcceptResult(AcceptStatus.JOINED, workspace, member);
-    }
-
-    public static InvitationAcceptResult alreadyMember(Workspace workspace, WorkspaceMember member) {
-        return new InvitationAcceptResult(AcceptStatus.ALREADY_MEMBER, workspace, member);
-    }
-
-    public enum AcceptStatus {
-        JOINED,
-        ALREADY_MEMBER
-    }
+public record InvitationAcceptResult(Result result, WorkspaceSummary workspace, MemberSummary member) {
+    public enum Result {SUCCESS, ALREADY_MEMBER}
+    public record WorkspaceSummary(Long id, String name) {}
+    public record MemberSummary(Long id, String role, Instant joinedAt) {}
 }

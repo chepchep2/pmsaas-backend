@@ -53,6 +53,9 @@ public class Invitation {
     @Column(name = "expired_at")
     private Instant expiredAt;
 
+    @Column(name = "sending_at")
+    private Instant sendingAt;
+
     protected Invitation() {}
 
     private Invitation(
@@ -86,10 +89,25 @@ public class Invitation {
         return status == Status.EXPIRED || invitationCode.isExpired(now);
     }
 
-    public void markSent(Instant now) {
+    public void markSending(Instant now) {
         requirePending();
+        this.status = Status.SENDING;
+        this.sendingAt = now;
+    }
+
+    public void markSent(Instant now) {
+        requireSending();
         this.status = Status.SENT;
         this.sentAt = now;
+    }
+
+    public void markFailed() {
+        requireSending();
+        this.status = Status.FAILED;
+    }
+
+    public void markCancelled() {
+        this.status = Status.CANCELLED;
     }
 
     public void accept(String acceptingEmail, Instant now) {
@@ -103,22 +121,24 @@ public class Invitation {
         this.acceptedAt = now;
     }
 
-    public void expire(Instant now) {
+    public void cancel(Instant now) {
         if (this.status == Status.ACCEPTED) {
             throw new InvitationStateException("Accepted invitations cannot expire");
         }
-        if (this.status == Status.EXPIRED) {
+        if (this.status == Status.CANCELLED) {
             return;
         }
-        this.status = Status.EXPIRED;
+        this.status = Status.CANCELLED;
         this.expiredAt = now;
     }
 
     public enum Status {
         PENDING,
+        SENDING,
         SENT,
         ACCEPTED,
-        EXPIRED
+        CANCELLED,
+        FAILED
     }
 
     public Long getId() {
@@ -175,7 +195,13 @@ public class Invitation {
 
     private void requirePending() {
         if (this.status != Status.PENDING) {
-            throw new InvitationStateException("Only pending invitations can be marked as sent");
+            throw new InvitationStateException("Only pending invitations can be marked as sending");
+        }
+    }
+
+    private void requireSending() {
+        if (this.status != Status.SENDING) {
+            throw new InvitationStateException("Only sending invitations can be marked as sent");
         }
     }
 

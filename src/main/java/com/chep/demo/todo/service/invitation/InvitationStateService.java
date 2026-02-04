@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -14,16 +15,19 @@ import java.util.Optional;
 @Service
 public class InvitationStateService {
     private final InvitationRepository invitationRepository;
+    private final Clock clock;
 
     public InvitationStateService(
-            InvitationRepository invitationRepository
+            InvitationRepository invitationRepository,
+            Clock clock
     ) {
         this.invitationRepository = invitationRepository;
+        this.clock = clock;
     }
     private static final Logger log = LoggerFactory.getLogger(InvitationStateService.class);
 
     public boolean tryMarkSending(Long invitationId) {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         int updatedInvitation = invitationRepository.tryMarkSending(invitationId, now);
         return updatedInvitation == 1;
     }

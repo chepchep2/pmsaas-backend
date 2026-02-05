@@ -20,71 +20,111 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
     }
 
     @Override
-    public List<UnifiedWorkspaceMember> findWithCursor(Long workspaceId, Integer cursorTypePriority, Instant cursorSortAt, Long cursorRowId, String keyword, int limit) {
-        String sql = """
-                    SELECT * FROM
-                        (SELECT
-                            wm.id as row_id,
-                            u.email as email,
-                            u.name as name,
-                            wm.role as role,
-                            'MEMBER' as type,
-                            0 as type_priority,
-                            wm.joined_at as sort_at
-                        FROM workspace_members wm
-                        LEFT JOIN users u ON wm.user_id = u.id
-                        WHERE wm.workspace_id = :workspaceId 
-                            AND wm.status = 'ACTIVE'
-                            AND (:keyword IS NULL 
-                                OR LOWER(u.email) LIKE :keyword
-                                OR LOWER(u.name) LIKE :keyword)
-                        
-                        UNION ALL
-                        
-                        SELECT
-                            i.id as row_id,
-                            i.sent_email as email,
-                            NULL as name,
-                            NULL as role,
-                            'INVITATION' as type,
-                            1 as type_priority,
-                            i.created_at as sort_at
-                        FROM invitations i
-                        LEFT JOIN invitation_codes ic ON i.invite_code_id = ic.id
-                        WHERE ic.workspace_id = :workspaceId 
-                            AND i.status = 'SENT'
-                            AND (:keyword IS NULL 
-                               OR LOWER(i.sent_email) LIKE :keyword)                
-                        ) unified
-                    WHERE (
-                        :cursorTypePriority IS NULL
-                        AND :cursorSortAt IS NULL
-                        AND :cursorRowId IS NULL
-                        )
-                            OR (
-                            type_priority > :cursorTypePriority
-                                OR (
-                                    type_priority = :cursorTypePriority
-                                    AND sort_at < :cursorSortAt
-                                )
-                                OR (
-                                    type_priority = :cursorTypePriority
-                                    AND sort_at = :cursorSortAt
-                                    AND row_id < :cursorRowId
-                                )
-                            )
-                    ORDER BY
-                        type_priority ASC,                        
-                        sort_at DESC,
-                        row_id DESC
-                """;
+    public List<UnifiedWorkspaceMember> findWithCursor(Long workspaceId,
+                                                       Integer cursorTypePriority,
+                                                       Instant cursorSortAt,
+                                                       Long cursorRowId,
+                                                       String keyword,
+                                                       int limit
+    ) {
 
-        Query query = em.createNativeQuery(sql);
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasCursor = cursorTypePriority != null && cursorSortAt != null && cursorRowId != null;
+
+        StringBuilder sql = new StringBuilder();
+
+        sql.append("""
+                SELECT row_id,
+                       email,
+                       name,
+                       role,
+                       type,
+                       type_priority,
+                       sort_at
+                    FROM (
+                    SELECT 
+                        wm.id AS row_id,
+                        u.email AS email,
+                        u.name AS name,
+                        wm.role AS role,
+                        'MEMBER' AS type,
+                        0 AS type_priority,
+                        wm.joined_at AS sort_at
+                    FROM workspace_members wm
+                    LEFT JOIN users u ON wm.user_id = u.id
+                    WHERE wm.workspace_id = :workspaceId
+                        AND wm.status = 'ACTIVE'                    
+                """);
+        if (hasKeyword) {
+            sql.append("""
+                    AND (
+                        LOWER(u.email) LIKE :keyword
+                        OR LOWER(u.name) LIKE :keyword
+                    )
+                    """);
+        }
+
+        sql.append("""
+                UNION ALL
+                
+                SELECT
+                    i.id AS row_id,
+                    i.sent_email AS email,
+                    NULL AS name,
+                    NULL AS role,
+                    'INVITATION' AS type,
+                    1 AS type_priority,
+                    i.created_at AS sort_at
+                FROM invitations i
+                LEFT JOIN invitation_codes ic ON i.invite_code_id = ic.id
+                WHERE ic.workspace_id = :workspaceId
+                    AND i.status = 'SENT'
+                """);
+
+        if (hasKeyword) {
+            sql.append("""
+                    AND LOWER(i.sent_email) LIKE :keyword
+                    """);
+        }
+
+        sql.append("""
+                ) unified
+                """);
+
+        if (hasCursor) {
+            sql.append("""
+                    WHERE (
+                        type_priority > :cursorTypePriority
+                        OR (
+                            type_priority = :cursorTypePriority
+                            AND sort_at < :cursorSortAt
+                        )
+                        OR (
+                            type_priority = :cursorTypePriority
+                            AND sort_at = :cursorSortAt
+                            AND row_id < :cursorRowId
+                        )
+                    )
+                    """);
+        }
+
+        sql.append("""
+                ORDER BY
+                    type_priority ASC,
+                    sort_at DESC,
+                    row_id DESC
+                """);
+
+        Query query = em.createNativeQuery(sql.toString());
         query.setParameter("workspaceId", workspaceId);
-        query.setParameter("keyword", keyword != null ? "%" + keyword.toLowerCase() + "%" : null);
-        query.setParameter("cursorTypePriority", cursorTypePriority);
-        query.setParameter("cursorSortAt", cursorSortAt);
-        query.setParameter("cursorRowId", cursorRowId);
+        if (hasKeyword) {
+            query.setParameter("keyword", "%" + keyword.trim().toLowerCase() + "%");
+        }
+        if (hasCursor) {
+            query.setParameter("cursorTypePriority", cursorTypePriority);
+            query.setParameter("cursorSortAt", cursorSortAt);
+            query.setParameter("cursorRowId", cursorRowId);
+        }
         query.setMaxResults(limit);
 
         List<Object[]> results = query.getResultList();

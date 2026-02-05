@@ -113,6 +113,7 @@ public class WorkspaceController {
         return ResponseEntity.ok(responses);
     }
 
+    @Operation(summary = "워크스페이스 통합 멤버 목록", description = "해당 워크스페이스의 활성 멤버, 초대 대기 목록을 반환합니다.")
     @GetMapping("/{workspaceId}/members/unified")
     public UnifiedWorkspaceMemberCursorResponse getUnifiedMembers(@PathVariable Long workspaceId,
                                                           @RequestParam(required = false) Integer cursorTypePriority,

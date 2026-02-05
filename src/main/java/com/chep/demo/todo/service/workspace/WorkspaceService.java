@@ -74,6 +74,17 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public UnifiedWorkspaceMemberCursorResponse getUnifiedMembers(Long workspaceId, Long userId, Integer cursorTypePriority, Instant cursorSortAt, Long cursorRowId, String keyword, int limit) {
+        boolean hasCursorTypePriority = cursorTypePriority != null;
+        boolean hasCursorSortAt = cursorSortAt != null;
+        boolean hasCursorRowId = cursorRowId != null;
+
+        if (hasCursorTypePriority || hasCursorSortAt || hasCursorRowId) {
+            if (!(hasCursorTypePriority && hasCursorSortAt && hasCursorRowId)) {
+                throw new IllegalArgumentException(
+                        "cursor parameters must be all present or all absent"
+                );
+            }
+        }
         Workspace workspace = findWorkspaceId(workspaceId);
         workspace.requireActiveMember(userId);
 

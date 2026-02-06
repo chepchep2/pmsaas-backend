@@ -1,5 +1,8 @@
-package com.chep.demo.todo.domain.workspace;
+package com.chep.demo.todo.infrastructure.persistence.workspace;
 
+import com.chep.demo.todo.domain.workspace.UnifiedWorkspaceMember;
+import com.chep.demo.todo.domain.workspace.UnifiedWorkspaceMemberQueryRepository;
+import com.chep.demo.todo.domain.workspace.MemberType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import org.springframework.stereotype.Repository;
@@ -27,10 +30,29 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                                                        String keyword,
                                                        int limit
     ) {
-
         boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
         boolean hasCursor = cursorTypePriority != null && cursorSortAt != null && cursorRowId != null;
 
+        String sql = buildUnifiedMembersSql(hasKeyword, hasCursor);
+
+        Query query = createQueryWithParams(
+                sql,
+                workspaceId,
+                keyword,
+                cursorTypePriority,
+                cursorSortAt,
+                cursorRowId,
+                limit,
+                hasKeyword,
+                hasCursor
+        );
+
+        List<Object[]> results = query.getResultList();
+
+        return mapResults(results);
+    }
+
+    private String buildUnifiedMembersSql(boolean hasKeyword, boolean hasCursor) {
         StringBuilder sql = new StringBuilder();
 
         sql.append("""
@@ -48,7 +70,7 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                         u.name AS name,
                         wm.role AS role,
                         'MEMBER' AS type,
-                        0 AS type_priority,
+                        :memberTypePriority AS type_priority,
                         wm.joined_at AS sort_at
                     FROM workspace_members wm
                     LEFT JOIN users u ON wm.user_id = u.id
@@ -73,7 +95,7 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                     NULL AS name,
                     NULL AS role,
                     'INVITATION' AS type,
-                    1 AS type_priority,
+                    :invitationTypePriority AS type_priority,
                     i.created_at AS sort_at
                 FROM invitations i
                 LEFT JOIN invitation_codes ic ON i.invite_code_id = ic.id
@@ -115,7 +137,21 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                     row_id DESC
                 """);
 
-        Query query = em.createNativeQuery(sql.toString());
+        return sql.toString();
+    }
+
+    private Query createQueryWithParams(String sql,
+                                        Long workspaceId,
+                                        String keyword,
+                                        Integer cursorTypePriority,
+                                        Instant cursorSortAt, Long cursorRowId,
+                                        int limit,
+                                        boolean hasKeyword,
+                                        boolean hasCursor
+    ) {
+        Query query = em.createNativeQuery(sql);
+        query.setParameter("memberTypePriority", MemberType.MEMBER.getPriority());
+        query.setParameter("invitationTypePriority", MemberType.INVITATION.getPriority());
         query.setParameter("workspaceId", workspaceId);
         if (hasKeyword) {
             query.setParameter("keyword", "%" + keyword.trim().toLowerCase() + "%");
@@ -127,8 +163,10 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
         }
         query.setMaxResults(limit);
 
-        List<Object[]> results = query.getResultList();
+        return query;
+    }
 
+    private List<UnifiedWorkspaceMember> mapResults(List<Object[]> results) {
         return results.stream()
                 .map(this::mapToUnifiedMember)
                 .toList();

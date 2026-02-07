@@ -4,6 +4,7 @@ import com.chep.demo.todo.domain.user.User;
 import com.chep.demo.todo.domain.user.UserRepository;
 import com.chep.demo.todo.domain.workspace.*;
 import com.chep.demo.todo.dto.workspace.UnifiedWorkspaceMemberCursorResponse;
+import com.chep.demo.todo.dto.workspace.UnifiedWorkspaceMemberSearchRequest;
 import com.chep.demo.todo.dto.workspace.WorkspaceMemberCursorResponse;
 import com.chep.demo.todo.dto.workspace.WorkspaceMemberResponse;
 import com.chep.demo.todo.exception.workspace.WorkspaceAccessDeniedException;
@@ -73,22 +74,23 @@ public class WorkspaceService {
     }
 
     @Transactional(readOnly = true)
-    public UnifiedWorkspaceMemberCursorResponse getUnifiedMembers(Long workspaceId, Long userId, Integer cursorTypePriority, Instant cursorSortAt, Long cursorRowId, String keyword, int limit) {
-        boolean hasCursorTypePriority = cursorTypePriority != null;
-        boolean hasCursorSortAt = cursorSortAt != null;
-        boolean hasCursorRowId = cursorRowId != null;
+    public UnifiedWorkspaceMemberCursorResponse getUnifiedMembers(Long userId, UnifiedWorkspaceMemberSearchRequest request) {
+        Long workspaceId = request.workspaceId();
+        Integer cursorTypePriority = request.cursorTypePriority();
+        Instant cursorSortAt = request.cursorSortAt();
+        Long cursorRowId = request.cursorRowId();
+        String keyword = request.keyword();
+        int limit = request.limit();
 
-        if (hasCursorTypePriority || hasCursorSortAt || hasCursorRowId) {
-            if (!(hasCursorTypePriority && hasCursorSortAt && hasCursorRowId)) {
-                throw new IllegalArgumentException(
-                        "cursor parameters must be all present or all absent"
-                );
-            }
-        }
         Workspace workspace = findWorkspaceId(workspaceId);
         workspace.requireActiveMember(userId);
 
-        List<UnifiedWorkspaceMember> members = unifiedWorkspaceMemberQueryRepository.findWithCursor(workspaceId, cursorTypePriority, cursorSortAt, cursorRowId, keyword, limit + 1);
+        List<UnifiedWorkspaceMember> members = unifiedWorkspaceMemberQueryRepository.findWithCursor(workspaceId,
+                                                                                                    cursorTypePriority,
+                                                                                                    cursorSortAt,
+                                                                                                    cursorRowId,
+                                                                                                    keyword,
+                                                                                                    limit + 1);
 
         boolean hasNext = members.size() > limit;
         List<UnifiedWorkspaceMember> resultMembers = hasNext ? members.subList(0, limit) : members;
@@ -223,7 +225,7 @@ public class WorkspaceService {
         if (hasNext && !resultMembers.isEmpty()) {
             UnifiedWorkspaceMember lastMember = resultMembers.get(resultMembers.size() - 1);
 
-            cursorTypePriority = lastMember.getType() == UnifiedWorkspaceMember.MemberType.MEMBER ? 0 : 1;
+            cursorTypePriority = lastMember.getType().getPriority();
             cursorSortAt = lastMember.getSortAt();
             cursorRowId = lastMember.getRowId();
         }

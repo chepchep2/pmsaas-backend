@@ -115,14 +115,23 @@ public class WorkspaceController {
 
     @Operation(summary = "워크스페이스 통합 멤버 목록", description = "해당 워크스페이스의 활성 멤버, 초대 대기 목록을 반환합니다.")
     @GetMapping("/{workspaceId}/members/unified")
-    public UnifiedWorkspaceMemberCursorResponse getUnifiedMembers(@PathVariable Long workspaceId,
+    public ResponseEntity<UnifiedWorkspaceMemberCursorResponse> getUnifiedMembers(@PathVariable Long workspaceId,
                                                           @RequestParam(required = false) Integer cursorTypePriority,
                                                           @RequestParam(required = false) Instant cursorSortAt,
                                                           @RequestParam(required = false) Long cursorRowId,
                                                           @RequestParam(required = false) String keyword,
                                                           @RequestParam(defaultValue = "20") int limit) {
         Long userId = currentUserId();
-        return workspaceService.getUnifiedMembers(workspaceId, userId, cursorTypePriority, cursorSortAt, cursorRowId, keyword, limit);
+        UnifiedWorkspaceMemberSearchRequest request = new UnifiedWorkspaceMemberSearchRequest(
+                workspaceId,
+                cursorTypePriority,
+                cursorSortAt,
+                cursorRowId,
+                keyword,
+                limit
+        );
+        UnifiedWorkspaceMemberCursorResponse response = workspaceService.getUnifiedMembers(userId, request);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "내 멤버십 정보", description = "해당 워크스페이스에서 내 역할과 상태를 조회합니다.")

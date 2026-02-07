@@ -5,6 +5,7 @@ import com.chep.demo.todo.domain.workspace.UnifiedWorkspaceMemberQueryRepository
 import com.chep.demo.todo.domain.workspace.MemberType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
+import jakarta.persistence.Tuple;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
@@ -47,7 +48,7 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                 hasCursor
         );
 
-        List<Object[]> results = query.getResultList();
+        List<Tuple> results = query.getResultList();
 
         return mapResults(results);
     }
@@ -149,7 +150,7 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                                         boolean hasKeyword,
                                         boolean hasCursor
     ) {
-        Query query = em.createNativeQuery(sql);
+        Query query = em.createNativeQuery(sql, Tuple.class);
         query.setParameter("memberTypePriority", MemberType.MEMBER.getPriority());
         query.setParameter("invitationTypePriority", MemberType.INVITATION.getPriority());
         query.setParameter("workspaceId", workspaceId);
@@ -166,20 +167,20 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
         return query;
     }
 
-    private List<UnifiedWorkspaceMember> mapResults(List<Object[]> results) {
+    private List<UnifiedWorkspaceMember> mapResults(List<Tuple> results) {
         return results.stream()
                 .map(this::mapToUnifiedMember)
                 .toList();
     }
 
-    private UnifiedWorkspaceMember mapToUnifiedMember(Object[] row) {
-        return new UnifiedWorkspaceMember(
-                ((Number) row[0]).longValue(),
-                (String) row[1],
-                (String) row[2],
-                row[3] != null ? row[3].toString() : null,
-                row[4] != null ? row[4].toString() : null,
-                toInstant(row[6])
+    private UnifiedWorkspaceMember mapToUnifiedMember(Tuple t) {
+        return UnifiedWorkspaceMember.fromRawStrings(
+                t.get("row_id", Long.class),
+                t.get("email", String.class),
+                t.get("name", String.class),
+                t.get("role", String.class),
+                t.get("type", String.class),
+                toInstant(t.get("sort_at"))
         );
     }
 

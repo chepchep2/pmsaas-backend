@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
         log.error("Validation failed. errorCode={}, path={}, message={}",
                 ErrorCode.VALIDATION_FAILED, request.getRequestURI(), message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(createErrorResponse(HttpStatus.BAD_REQUEST, ErrorCode.INVITATION_VALIDATION_FAILED, message, request));
+                .body(createErrorResponse(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, message, request));
     }
 
     @ExceptionHandler(InviteCodeWorkspaceMismatchException.class)

@@ -1,6 +1,9 @@
 package com.chep.demo.todo.domain.workspace;
 
+import com.chep.demo.todo.domain.invitation.Invitation;
+
 import java.time.Instant;
+import java.util.Objects;
 
 public class UnifiedWorkspaceMember {
     private Long rowId;
@@ -9,15 +12,17 @@ public class UnifiedWorkspaceMember {
     private WorkspaceMember.Role role;
     private MemberType type;
     private Instant sortAt;
+    private Invitation.Status invitationStatus;
 
     public UnifiedWorkspaceMember(Long rowId, String email, String name,
-                                  WorkspaceMember.Role role, MemberType type, Instant sortAt) {
+                                  WorkspaceMember.Role role, MemberType type, Instant sortAt, Invitation.Status invitationStatus) {
         this.rowId = rowId;
         this.email = email;
         this.name = name;
         this.role = role;
         this.type = type;
         this.sortAt = sortAt;
+        this.invitationStatus = invitationStatus;
     }
 
     public static UnifiedWorkspaceMember fromRawStrings(
@@ -26,7 +31,8 @@ public class UnifiedWorkspaceMember {
             String name,
             String roleRaw,
             String typeRaw,
-            Instant sortAt
+            Instant sortAt,
+            String statusRaw
     ) {
         if (rowId == null) {
             throw new IllegalArgumentException("rowId must not be null");
@@ -57,7 +63,16 @@ public class UnifiedWorkspaceMember {
             throw new IllegalArgumentException("Invalid member type: " + typeRaw, e);
         }
 
-        return new UnifiedWorkspaceMember(rowId, email, name, role, type, sortAt);
+        Invitation.Status invitationStatus = null;
+        if (statusRaw != null) {
+            try {
+                invitationStatus = Invitation.Status.valueOf(statusRaw);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid invitation status: " + statusRaw, e);
+            }
+        }
+
+        return new UnifiedWorkspaceMember(rowId, email, name, role, type, sortAt, invitationStatus);
     }
 
 
@@ -83,5 +98,21 @@ public class UnifiedWorkspaceMember {
 
     public Instant getSortAt() {
         return sortAt;
+    }
+
+    public Invitation.Status getInvitationStatus() {
+        return invitationStatus;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        UnifiedWorkspaceMember that = (UnifiedWorkspaceMember) o;
+        return Objects.equals(rowId, that.rowId) && type == that.type;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(rowId, type);
     }
 }

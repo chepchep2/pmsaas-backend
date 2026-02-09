@@ -1,10 +1,11 @@
 package com.chep.demo.todo.domain.workspace;
 
 import com.chep.demo.todo.domain.invitation.Invitation;
+import lombok.EqualsAndHashCode;
 
 import java.time.Instant;
-import java.util.Objects;
 
+@EqualsAndHashCode(of = {"rowId", "type"})
 public class UnifiedWorkspaceMember {
     private Long rowId;
     private String email;
@@ -102,17 +103,5 @@ public class UnifiedWorkspaceMember {
 
     public Invitation.Status getInvitationStatus() {
         return invitationStatus;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
-        UnifiedWorkspaceMember that = (UnifiedWorkspaceMember) o;
-        return Objects.equals(rowId, that.rowId) && type == that.type;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(rowId, type);
     }
 }

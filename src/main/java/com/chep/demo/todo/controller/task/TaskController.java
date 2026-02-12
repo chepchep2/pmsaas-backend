@@ -18,7 +18,6 @@ import java.util.List;
 
 @Tag(name = "Task", description = "Task 관리 API")
 @RestController
-@RequestMapping("/api/tasks")
 public class TaskController {
     private final TaskService taskService;
 
@@ -39,7 +38,7 @@ public class TaskController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공")
     })
-    @GetMapping
+    @GetMapping("/api/tasks")
     ResponseEntity<List<TaskResponse>> getTasks() {
         Long userId = currentUserId();
 
@@ -48,6 +47,26 @@ public class TaskController {
                 .map(this::toResponse)
                 .toList();
 
+        return ResponseEntity.ok(responses);
+    }
+    @GetMapping("/api/workspaces/{workspaceId}/tasks")
+    ResponseEntity<List<TaskResponse>> getWorkspaceTasks(@PathVariable Long workspaceId) {
+        Long userId = currentUserId();
+
+        List<TaskResponse> responses = taskService.getWorkspaceTasks(workspaceId, userId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+    @GetMapping("/api/workspaces/{workspaceId}/projects/{projectId}/tasks")
+    ResponseEntity<List<TaskResponse>> getProjectTasks(@PathVariable Long workspaceId, @PathVariable Long projectId) {
+        Long userId = currentUserId();
+
+        List<TaskResponse> responses = taskService.getProjectTasks(workspaceId, projectId, userId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
         return ResponseEntity.ok(responses);
     }
 
@@ -59,11 +78,11 @@ public class TaskController {
             @ApiResponse(responseCode = "201", description = "생성 성공"),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 또는 잘못된 assigneeId 포함")
     })
-    @PostMapping
-    ResponseEntity<TaskResponse> createTask(@Valid @RequestBody CreateTaskRequest request) {
+    @PostMapping("/api/workspaces/{workspaceId}/tasks")
+    ResponseEntity<TaskResponse> createTask(@PathVariable Long workspaceId, @Valid @RequestBody CreateTaskRequest request) {
         Long userId = currentUserId();
 
-        Task created = taskService.createTask(userId, request);
+        Task created = taskService.createTask(workspaceId, userId, request);
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -82,7 +101,7 @@ public class TaskController {
             @ApiResponse(responseCode = "200", description = "수정 성공"),
             @ApiResponse(responseCode = "404", description = "존재하지 않거나 권한이 없는 Task ID")
     })
-    @PutMapping("/{id}")
+    @PutMapping("/api/tasks/{id}")
     ResponseEntity<TaskResponse> updateTask(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskRequest request
@@ -101,7 +120,7 @@ public class TaskController {
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
             @ApiResponse(responseCode = "404", description = "존재하지 않거나 권한이 없는 Task ID")
     })
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/api/tasks/{id}")
     ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         Long userId = currentUserId();
 
@@ -118,7 +137,7 @@ public class TaskController {
             @ApiResponse(responseCode = "204", description = "토글 성공"),
             @ApiResponse(responseCode = "404", description = "존재하지 않거나 권한이 없는 Task ID")
     })
-    @PatchMapping("/{id}/toggle")
+    @PatchMapping("/api/tasks/{id}/toggle")
     ResponseEntity<Void> toggleTaskComplete(@PathVariable Long id) {
         Long userId = currentUserId();
 
@@ -135,7 +154,7 @@ public class TaskController {
             @ApiResponse(responseCode = "204", description = "순서 변경 성공"),
             @ApiResponse(responseCode = "404", description = "존재하지 않거나 권한이 없는 Task ID")
     })
-    @PatchMapping("/{id}/move")
+    @PatchMapping("/api/tasks/{id}/move")
     ResponseEntity<Void> moveTask(
             @PathVariable Long id,
             @Valid @RequestBody MoveTaskRequest request
@@ -156,7 +175,7 @@ public class TaskController {
             @ApiResponse(responseCode = "400", description = "잘못된 assigneeId 포함"),
             @ApiResponse(responseCode = "404", description = "존재하지 않거나 권한이 없는 Task ID")
     })
-    @PatchMapping("/{id}/assignees")
+    @PatchMapping("/api/tasks/{id}/assignees")
     ResponseEntity<TaskResponse> updateAssignees(
             @PathVariable Long id,
             @Valid @RequestBody UpdateAssigneesRequest request
@@ -174,7 +193,7 @@ public class TaskController {
             @ApiResponse(responseCode = "200", description = "변경 성공"),
             @ApiResponse(responseCode = "404", description = "존재하지 않거나 권한이 없는 Task ID")
     })
-    @PatchMapping("/{id}/due-date")
+    @PatchMapping("/api/tasks/{id}/due-date")
     ResponseEntity<TaskResponse> updateDueDate(
             @PathVariable Long id,
             @Valid @RequestBody UpdateDueDateRequest request

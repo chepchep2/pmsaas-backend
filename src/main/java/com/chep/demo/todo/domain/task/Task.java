@@ -1,5 +1,6 @@
 package com.chep.demo.todo.domain.task;
 
+import com.chep.demo.todo.domain.project.Project;
 import com.chep.demo.todo.domain.user.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "tasks")
@@ -44,6 +46,10 @@ public class Task {
     private Instant updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
@@ -56,7 +62,7 @@ public class Task {
 
     protected Task() {}
 
-    private Task(User user, String title, String content, Integer orderIndex, Instant dueDate) {
+    private Task(User user, String title, String content, Integer orderIndex, Instant dueDate, Project project) {
         if (user == null) {
             throw new IllegalArgumentException("user must not be null");
         }
@@ -69,6 +75,10 @@ public class Task {
             throw new IllegalArgumentException("orderIndex must not be null");
         }
 
+        if (project == null) {
+            throw new IllegalArgumentException("project must not be null");
+        }
+
         this.user = user;
         this.title = title;
         this.content = content;
@@ -77,6 +87,7 @@ public class Task {
         this.createdAt = Instant.now();
         this.dueDate = dueDate;
         this.updatedAt = null;
+        this.project = project;
     }
 
     public static class Builder {
@@ -85,6 +96,7 @@ public class Task {
         private String content;
         private Integer orderIndex;
         private Instant dueDate;
+        private Project project;
 
         public Builder user(User user) {
             this.user = user;
@@ -111,8 +123,13 @@ public class Task {
             return this;
         }
 
+        public Builder project(Project project) {
+            this.project = project;
+            return this;
+        }
+
         public Task build() {
-            return new Task(user, title, content, orderIndex, dueDate);
+            return new Task(user, title, content, orderIndex, dueDate, project);
         }
     }
 
@@ -131,21 +148,31 @@ public class Task {
         this.updatedAt = Instant.now();
     }
 
-    public void changeAssignees(Set<User> users) {
-        this.assignees.clear();
-
-        if (users == null || users.isEmpty()) {
-            this.updatedAt = Instant.now();
-            return;
+    public void changeAssignees(Set<User> newUsers) {
+        if (newUsers == null) {
+            newUsers = new HashSet<>();
         }
 
-        for (User user : users) {
-            TaskAssignee assignee = TaskAssignee.builder()
-                    .task(this)
-                    .user(user)
-                    .build();
-            this.assignees.add(assignee);
+        Set<Long> existingUserIds = this.assignees.stream()
+                .map(assignee -> assignee.getUser().getId())
+                .collect(Collectors.toSet());
+
+        Set<Long> newUserIds = newUsers.stream()
+                .map(User::getId)
+                .collect(Collectors.toSet());
+
+        this.assignees.removeIf(assignee -> !newUserIds.contains(assignee.getUser().getId()));
+
+        for (User user : newUsers) {
+            if (!existingUserIds.contains(user.getId())) {
+                TaskAssignee assignee = TaskAssignee.builder()
+                        .task(this)
+                        .user(user)
+                        .build();
+                this.assignees.add(assignee);
+            }
         }
+
         this.updatedAt = Instant.now();
     }
 
@@ -247,5 +274,9 @@ public class Task {
 
     public Instant getDeletedAt() {
         return deletedAt;
+    }
+
+    public Project getProject() {
+        return project;
     }
 }

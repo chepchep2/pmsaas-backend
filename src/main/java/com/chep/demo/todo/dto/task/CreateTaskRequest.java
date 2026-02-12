@@ -1,7 +1,7 @@
 package com.chep.demo.todo.dto.task;
 
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,5 +12,6 @@ public record CreateTaskRequest(
         String content,
         Integer orderIndex,
         Instant dueDate,
-        List<Long> assigneeIds
+        List<Long> assigneeIds,
+        Long projectId
 ) {}

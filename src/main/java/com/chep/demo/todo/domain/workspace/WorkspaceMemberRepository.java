@@ -94,6 +94,12 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
     List<String> findActiveMemberEmails(@Param("workspaceId") Long workspaceId);
 
     Optional<WorkspaceMember> findByWorkspaceIdAndUserId(Long workspaceId, Long userId);
+
+    Optional<WorkspaceMember> findByWorkspaceIdAndUserIdAndStatus(
+            Long workspaceId,
+            Long userId,
+            WorkspaceMember.Status status
+    );
 }
 
 // @Query(value = """

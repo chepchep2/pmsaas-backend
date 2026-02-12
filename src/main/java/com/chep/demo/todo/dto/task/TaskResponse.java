@@ -1,9 +1,9 @@
-package com.chep.demo.todo.dto.todo;
+package com.chep.demo.todo.dto.task;
 
 import java.time.Instant;
 import java.util.List;
 
-public record TodoResponse(
+public record TaskResponse(
         Long id,
         String title,
         String content,

@@ -1,4 +1,4 @@
-package com.chep.demo.todo.domain.todo;
+package com.chep.demo.todo.domain.task;
 
 import com.chep.demo.todo.domain.user.User;
 import jakarta.persistence.*;
@@ -14,12 +14,12 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "todos")
+@Table(name = "tasks")
 @SQLRestriction("deleted_at IS NULL")
-public class Todo {
+public class Task {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "todos_id_gen")
-    @SequenceGenerator(name = "todos_id_gen", sequenceName = "todo_id_seq", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "task_id_gen")
+    @SequenceGenerator(name = "task_id_gen", sequenceName = "task_id_seq", allocationSize = 1)
     private Long id;
 
     @Size(max = 200)
@@ -54,9 +54,9 @@ public class Todo {
     @Column(name = "due_date")
     private Instant dueDate;
 
-    protected Todo() {}
+    protected Task() {}
 
-    private Todo(User user, String title, String content, Integer orderIndex, Instant dueDate) {
+    private Task(User user, String title, String content, Integer orderIndex, Instant dueDate) {
         if (user == null) {
             throw new IllegalArgumentException("user must not be null");
         }
@@ -111,8 +111,8 @@ public class Todo {
             return this;
         }
 
-        public Todo build() {
-            return new Todo(user, title, content, orderIndex, dueDate);
+        public Task build() {
+            return new Task(user, title, content, orderIndex, dueDate);
         }
     }
 
@@ -120,8 +120,8 @@ public class Todo {
         return new Builder();
     }
 
-    @OneToMany(mappedBy = "todo", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<TodoAssignee> assignees = new HashSet<>();
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TaskAssignee> assignees = new HashSet<>();
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
@@ -140,8 +140,8 @@ public class Todo {
         }
 
         for (User user : users) {
-            TodoAssignee assignee = TodoAssignee.builder()
-                    .todo(this)
+            TaskAssignee assignee = TaskAssignee.builder()
+                    .task(this)
                     .user(user)
                     .build();
             this.assignees.add(assignee);
@@ -158,7 +158,7 @@ public class Todo {
         this.updatedAt = Instant.now();
     }
 
-    public static List<Todo> reorder(Todo target, int targetIndex, List<Todo> affectedTodos) {
+    public static List<Task> reorder(Task target, int targetIndex, List<Task> affectedTasks) {
         if (target == null) {
             throw new IllegalArgumentException("target must not be null");
         }
@@ -174,11 +174,11 @@ public class Todo {
 
         int delta = targetIndex < currentIndex ? 1 : -1;
 
-        List<Todo> changed = new ArrayList<>();
-        if (affectedTodos != null) {
-            for (Todo todo : affectedTodos) {
-                todo.changeOrderIndex(todo.getOrderIndex() + delta);
-                changed.add(todo);
+        List<Task> changed = new ArrayList<>();
+        if (affectedTasks != null) {
+            for (Task task : affectedTasks) {
+                task.changeOrderIndex(task.getOrderIndex() + delta);
+                changed.add(task);
             }
         }
 
@@ -241,7 +241,7 @@ public class Todo {
         return dueDate;
     }
 
-    public Set<TodoAssignee> getAssignees() {
+    public Set<TaskAssignee> getAssignees() {
         return assignees;
     }
 

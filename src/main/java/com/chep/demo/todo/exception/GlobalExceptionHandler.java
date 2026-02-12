@@ -8,7 +8,7 @@ import com.chep.demo.todo.exception.invitation.InviteCodeExpiredException;
 import com.chep.demo.todo.exception.invitation.InviteCodeNotFoundException;
 import com.chep.demo.todo.exception.invitation.InviteCodeWorkspaceMismatchException;
 import com.chep.demo.todo.exception.project.ProjectNotFoundException;
-import com.chep.demo.todo.exception.todo.TodoNotFoundException;
+import com.chep.demo.todo.exception.task.TaskNotFoundException;
 import com.chep.demo.todo.exception.workspace.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -103,12 +103,12 @@ public class GlobalExceptionHandler {
                 .body(createErrorResponse(HttpStatus.FORBIDDEN, ErrorCode.WORKSPACE_ACCESS_DENIED, e.getMessage(), request));
     }
 
-    @ExceptionHandler(TodoNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleTodoNotFoundException(TodoNotFoundException e, HttpServletRequest request) {
-        log.error("Todo not found. errorCode={}, path={}, message={}",
-                ErrorCode.TODO_NOT_FOUND, request.getRequestURI(), e.getMessage());
+    @ExceptionHandler(TaskNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTaskNotFoundException(TaskNotFoundException e, HttpServletRequest request) {
+        log.error("Task not found. errorCode={}, path={}, message={}",
+                ErrorCode.TASK_NOT_FOUND, request.getRequestURI(), e.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(createErrorResponse(HttpStatus.NOT_FOUND, ErrorCode.TODO_NOT_FOUND, e.getMessage(), request));
+                .body(createErrorResponse(HttpStatus.NOT_FOUND, ErrorCode.TASK_NOT_FOUND, e.getMessage(), request));
     }
 
     @ExceptionHandler(WorkspaceOwnerNotFoundException.class)
@@ -167,4 +167,3 @@ public class GlobalExceptionHandler {
                 .body(createErrorResponse(HttpStatus.GONE, ErrorCode.INVITATION_EXPIRED, e.getMessage(), request));
     }
 }
-

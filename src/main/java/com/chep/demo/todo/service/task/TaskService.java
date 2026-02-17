@@ -1,5 +1,9 @@
 package com.chep.demo.todo.service.task;
 
+import com.chep.demo.todo.domain.notification.NotificationType;
+import com.chep.demo.todo.domain.notification.RecipientType;
+import com.chep.demo.todo.domain.notification.Notification;
+import com.chep.demo.todo.domain.notification.NotificationRepository;
 import com.chep.demo.todo.domain.project.Project;
 import com.chep.demo.todo.domain.project.ProjectRepository;
 import com.chep.demo.todo.domain.task.Task;
@@ -20,9 +24,14 @@ import com.chep.demo.todo.exception.project.ProjectNotFoundException;
 import com.chep.demo.todo.exception.task.TaskNotFoundException;
 import com.chep.demo.todo.exception.workspace.WorkspaceAccessDeniedException;
 import com.chep.demo.todo.exception.workspace.WorkspaceNotFoundException;
+import com.chep.demo.todo.service.notification.event.WorkspaceNotificationsCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
@@ -35,13 +44,27 @@ public class TaskService {
     private final WorkspaceRepository workspaceRepository;
     private final ProjectRepository projectRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final Clock clock;
+    private final NotificationRepository notificationRepository;
 
-    public TaskService(TaskRepository taskRepository, UserRepository userRepository, WorkspaceRepository workspaceRepository, ProjectRepository projectRepository, WorkspaceMemberRepository workspaceMemberRepository) {
+    public TaskService(
+            TaskRepository taskRepository,
+            UserRepository userRepository,
+            WorkspaceRepository workspaceRepository,
+            ProjectRepository projectRepository,
+            WorkspaceMemberRepository workspaceMemberRepository,
+            ApplicationEventPublisher applicationEventPublisher,
+            Clock clock,
+            NotificationRepository notificationRepository) {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
         this.projectRepository = projectRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
+        this.applicationEventPublisher = applicationEventPublisher;
+        this.clock = clock;
+        this.notificationRepository = notificationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -67,9 +90,11 @@ public class TaskService {
     public Task createTask(Long workspaceId, Long userId, CreateTaskRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AuthenticationException("User not found"));
-        workspaceRepository.findById(workspaceId)
+        Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new WorkspaceNotFoundException("Workspace not found"));
         validateWorkspaceMember(workspaceId, userId);
+
+        Instant now = Instant.now(clock);
 
         Project project;
         if (request.projectId() == null) {
@@ -111,10 +136,41 @@ public class TaskService {
                 .dueDate(request.dueDate())
                 .project(project)
                 .build();
-
         task.changeAssignees(assignees);
+        Task savedTask = taskRepository.save(task);
 
-        return taskRepository.save(task);
+        List<Notification> notifications = new ArrayList<>();
+
+        notifications.add(Notification.forWorkspace(
+                NotificationType.TASK_CREATED,
+                workspace,
+                savedTask,
+                user,
+                project,
+                now
+        ));
+
+        for (User assignee : assignees) {
+            notifications.add(Notification.forUser(
+                    NotificationType.TASK_CREATED,
+                    assignee.getId(),
+                    workspace,
+                    savedTask,
+                    user,
+                    project,
+                    now
+            ));
+        }
+
+        List<Notification> savedNotis = notificationRepository.saveAll(notifications);
+
+        List<Long> workspaceNotiIds = savedNotis.stream()
+                        .filter(n -> n.getRecipientType() == RecipientType.WORKSPACE)
+                        .map(Notification::getId)
+                        .toList();
+        applicationEventPublisher.publishEvent(new WorkspaceNotificationsCreatedEvent(workspaceId, workspaceNotiIds));
+
+        return savedTask;
     }
 
     private void shiftOrderIndexRange(List<Task> affectedTasks, int delta) {

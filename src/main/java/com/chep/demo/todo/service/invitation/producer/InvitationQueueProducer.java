@@ -1,6 +1,6 @@
 package com.chep.demo.todo.service.invitation.producer;
 
-import com.chep.demo.todo.service.invitation.RedisKeys;
+import com.chep.demo.todo.service.RedisKeys;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 

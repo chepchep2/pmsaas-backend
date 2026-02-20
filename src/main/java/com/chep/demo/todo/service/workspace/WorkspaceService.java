@@ -1,5 +1,7 @@
 package com.chep.demo.todo.service.workspace;
 
+import com.chep.demo.todo.domain.project.Project;
+import com.chep.demo.todo.domain.project.ProjectRepository;
 import com.chep.demo.todo.domain.user.User;
 import com.chep.demo.todo.domain.user.UserRepository;
 import com.chep.demo.todo.domain.workspace.*;
@@ -27,17 +29,20 @@ public class WorkspaceService {
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository;
+    private final ProjectRepository projectRepository;
 
     public WorkspaceService(
             WorkspaceRepository workspaceRepository,
             UserRepository userRepository,
             WorkspaceMemberRepository workspaceMemberRepository,
-            UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository
+            UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository,
+            ProjectRepository projectRepository
     ) {
         this.workspaceRepository = workspaceRepository;
         this.userRepository = userRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.unifiedWorkspaceMemberQueryRepository = unifiedWorkspaceMemberQueryRepository;
+        this.projectRepository = projectRepository;
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +55,9 @@ public class WorkspaceService {
                 .orElseThrow(() -> new WorkspaceOwnerNotFoundException("Owner not found."));
 
         Workspace workspace = Workspace.of(owner, name, description);
-        return workspaceRepository.save(workspace);
+        Workspace savedWorkspace = workspaceRepository.save(workspace);
+        projectRepository.save(Project.defaultProject(savedWorkspace, owner));
+        return savedWorkspace;
     }
 
     @Transactional(readOnly = true)

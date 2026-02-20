@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface ProjectRepository extends JpaRepository<Project, Long> {
     List<Project> findAllByWorkspaceId(Long workspaceId);
     Optional<Project> findByIdAndWorkspaceId(Long id, Long workspaceId);
+    Optional<Project> findByWorkspaceIdAndDefaultProject(Long workspaceId, Boolean isDefault);
 }

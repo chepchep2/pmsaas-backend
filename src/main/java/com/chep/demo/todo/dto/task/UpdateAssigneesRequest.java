@@ -1,4 +1,4 @@
-package com.chep.demo.todo.dto.todo;
+package com.chep.demo.todo.dto.task;
 
 import jakarta.validation.constraints.NotNull;
 

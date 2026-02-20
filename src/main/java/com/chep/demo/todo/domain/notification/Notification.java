@@ -74,6 +74,9 @@ public class Notification {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "sent_at")
+    private Instant sentAt;
+
     protected Notification() {
     }
 
@@ -149,6 +152,7 @@ public class Notification {
     public void markSent(Instant now) {
         requireSending();
         this.status = NotificationStatus.SENT;
+        this.sentAt = now;
     }
 
     public void markFailed() {
@@ -202,6 +206,10 @@ public class Notification {
 
     public NotificationStatus getStatus() {
         return status;
+    }
+
+    public Instant getSentAt() {
+        return sentAt;
     }
 
     public int getAttemptCount() {

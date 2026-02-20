@@ -93,7 +93,7 @@ public class TaskService {
             }
 
             if (orderIndex < totalCount) {
-                List<Task> affectedTasks = taskRepository.findByUserIdAndOrderIndexBetween(userId, orderIndex, totalCount - 1);
+                List<Task> affectedTasks = taskRepository.findByProjectIdAndOrderIndexBetween(project.getId(), orderIndex, totalCount - 1);
 
                 shiftOrderIndexRange(affectedTasks, + 1);
 

@@ -211,6 +211,7 @@ public class TaskController {
                 task.isCompleted(),
                 task.getOrderIndex(),
                 task.getDueDate(),
+                task.getProject().getId(),
                 task.getAssignees().stream()
                         .map(assignee -> assignee.getUser().getId())
                         .toList()

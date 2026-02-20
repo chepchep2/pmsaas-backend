@@ -1,15 +1,17 @@
 package com.chep.demo.todo.service.notification;
 
 import com.chep.demo.todo.domain.notification.Notification;
+import com.chep.demo.todo.domain.task.TaskAssignee;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class SlackMessageBuilder {
 
-    public String build(Notification notification) {
-        String assigneeNames = notification.getTask().getAssignees().stream()
+    public String build(Notification notification, List<TaskAssignee> assignees) {
+        String assigneeNames = assignees.stream()
                 .map(a -> a.getUser().getName())
                 .collect(Collectors.joining(", "));
 

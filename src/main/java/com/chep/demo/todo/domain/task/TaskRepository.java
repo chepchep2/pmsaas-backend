@@ -20,6 +20,17 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             "WHERE t.project.workspace.id = :workspaceId " +
             "ORDER BY t.project.id, t.orderIndex")
     List<Task> findAllByWorkspaceId(@Param("workspaceId") Long workspaceId);
+    @Query("""
+            SELECT DISTINCT t
+            FROM Task t
+            JOIN FETCH t.project p
+            JOIN FETCH p.workspace w
+            JOIN FETCH t.user u
+            LEFT JOIN FETCH t.assignees a
+            LEFT JOIN FETCH a.user au
+            WHERE t.id = :taskId
+            """)
+    Optional<Task> findByIdWithDetails(Long taskId);
 
     default void softDelete(Task task) {
         task.markDeleted();

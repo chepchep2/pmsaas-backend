@@ -1,6 +1,9 @@
 package com.chep.demo.todo.service.notification;
 
 import com.chep.demo.todo.domain.notification.Notification;
+import com.chep.demo.todo.domain.notification.NotificationRepository;
+import com.chep.demo.todo.domain.task.TaskAssignee;
+import com.chep.demo.todo.domain.task.TaskAssigneeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -8,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -17,15 +21,18 @@ public class SlackService {
     private final SlackClient slackClient;
     private final Clock clock;
     private final SlackMessageBuilder slackMessageBuilder;
+    private final TaskAssigneeRepository taskAssigneeRepository;
 
     public SlackService(NotificationStateService notificationStateService,
                         SlackClient slackClient,
                         Clock clock,
-                        SlackMessageBuilder slackMessageBuilder) {
+                        SlackMessageBuilder slackMessageBuilder,
+                        TaskAssigneeRepository taskAssigneeRepository) {
         this.notificationStateService = notificationStateService;
         this.slackClient = slackClient;
         this.clock = clock;
         this.slackMessageBuilder = slackMessageBuilder;
+        this.taskAssigneeRepository = taskAssigneeRepository;
     }
 
     @Transactional
@@ -38,7 +45,9 @@ public class SlackService {
         }
 
         Notification notification = optionalNotification.get();
-        String message = slackMessageBuilder.build(notification);
+        Long taskId = notification.getTask().getId();
+        List<TaskAssignee> assignees = taskAssigneeRepository.findAssigneesWithUser(taskId);
+        String message = slackMessageBuilder.build(notification, assignees);
 
         try {
             slackClient.send(message);

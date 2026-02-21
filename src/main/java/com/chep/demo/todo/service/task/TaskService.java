@@ -1,6 +1,5 @@
 package com.chep.demo.todo.service.task;
 
-import com.chep.demo.todo.domain.notification.NotificationRepository;
 import com.chep.demo.todo.domain.project.Project;
 import com.chep.demo.todo.domain.project.ProjectRepository;
 import com.chep.demo.todo.domain.task.Task;
@@ -21,15 +20,17 @@ import com.chep.demo.todo.exception.project.ProjectNotFoundException;
 import com.chep.demo.todo.exception.task.TaskNotFoundException;
 import com.chep.demo.todo.exception.workspace.WorkspaceAccessDeniedException;
 import com.chep.demo.todo.exception.workspace.WorkspaceNotFoundException;
+import com.chep.demo.todo.service.notification.event.TaskAssigneesChangedEvent;
 import com.chep.demo.todo.service.notification.event.TaskCreatedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -47,9 +48,8 @@ public class TaskService {
             WorkspaceRepository workspaceRepository,
             ProjectRepository projectRepository,
             WorkspaceMemberRepository workspaceMemberRepository,
-            ApplicationEventPublisher applicationEventPublisher,
-            Clock clock,
-            NotificationRepository notificationRepository) {
+            ApplicationEventPublisher applicationEventPublisher
+    ) {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
@@ -127,7 +127,6 @@ public class TaskService {
                 .build();
         task.changeAssignees(assignees);
         Task savedTask = taskRepository.save(task);
-        System.out.println("savedTask.getId() = " + savedTask.getId());
 
         applicationEventPublisher.publishEvent(new TaskCreatedEvent(workspaceId, savedTask.getId()));
 
@@ -230,8 +229,28 @@ public class TaskService {
                 .orElseThrow(() -> new TaskNotFoundException("Task not found"));
         Long workspaceId = task.getProject().getWorkspace().getId();
 
-        task.changeAssignees(resolveAssignees(workspaceId, request.assigneeIds()));
-        return taskRepository.save(task);
+        Set<Long> prevIds = task.getAssignees().stream()
+                        .map(t -> t.getUser().getId())
+                        .collect(Collectors.toSet());
+
+        Set<User> newAssignees = resolveAssignees(workspaceId, request.assigneeIds());
+        Set<Long> newIds = newAssignees.stream()
+                        .map(User::getId)
+                        .collect(Collectors.toSet());
+
+        if (prevIds.equals(newIds)) {
+            return task;
+        }
+
+        task.changeAssignees(newAssignees);
+        Task savedTask = taskRepository.save(task);
+
+        Set<Long> added = new HashSet<>(newIds);
+        added.removeAll(prevIds);
+
+        applicationEventPublisher.publishEvent(new TaskAssigneesChangedEvent(savedTask.getId(), userId, new ArrayList<>(added)));
+
+        return savedTask;
     }
 
     public Task updateDueDate(Long userId, Long taskId, UpdateDueDateRequest request) {

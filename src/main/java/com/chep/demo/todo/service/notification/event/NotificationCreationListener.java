@@ -9,7 +9,9 @@ import com.chep.demo.todo.domain.task.Task;
 import com.chep.demo.todo.domain.task.TaskAssignee;
 import com.chep.demo.todo.domain.task.TaskRepository;
 import com.chep.demo.todo.domain.user.User;
+import com.chep.demo.todo.domain.user.UserRepository;
 import com.chep.demo.todo.domain.workspace.Workspace;
+import com.chep.demo.todo.exception.auth.UserNotFoundException;
 import com.chep.demo.todo.exception.task.TaskNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -28,17 +30,20 @@ public class NotificationCreationListener {
     private final NotificationRepository notificationRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final Clock clock;
+    private final UserRepository userRepository;
 
     public NotificationCreationListener(
             NotificationRepository notificationRepository,
             TaskRepository taskRepository,
             ApplicationEventPublisher applicationEventPublisher,
-            Clock clock
+            Clock clock,
+            UserRepository userRepository
     ) {
         this.notificationRepository = notificationRepository;
         this.taskRepository = taskRepository;
         this.applicationEventPublisher = applicationEventPublisher;
         this.clock = clock;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -83,5 +88,52 @@ public class NotificationCreationListener {
                 .toList();
 
         applicationEventPublisher.publishEvent(new WorkspaceNotificationsCreatedEvent(event.workspaceId(), workspaceNotiIds));
+    }
+
+    @Transactional
+    @EventListener
+    public void handleTaskAssigneesChanged(TaskAssigneesChangedEvent event) {
+        Task task = taskRepository.findByIdWithDetails(event.taskId())
+                .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+
+        Workspace workspace = task.getProject().getWorkspace();
+        Project project = task.getProject();
+
+        User actor = userRepository.findById(event.actorId())
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        Instant now = Instant.now(clock);
+
+        List<Notification> notifications = new ArrayList<>();
+
+        notifications.add(Notification.forWorkspace(
+                NotificationType.TASK_ASSIGNEES_CHANGED,
+                workspace,
+                task,
+                actor,
+                project,
+                now
+        ));
+
+        for (Long addedUserId : event.addedAssigneeIds()) {
+            notifications.add(Notification.forUser(
+                    NotificationType.TASK_ASSIGNEES_CHANGED,
+                    addedUserId,
+                    workspace,
+                    task,
+                    actor,
+                    project,
+                    now
+            ));
+        }
+
+        List<Notification> saved = notificationRepository.saveAll(notifications);
+
+        List<Long> workspaceNotiIds = saved.stream()
+                .filter(n -> n.getRecipientType() == RecipientType.WORKSPACE)
+                .map(Notification::getId)
+                .toList();
+
+        applicationEventPublisher.publishEvent(new WorkspaceNotificationsCreatedEvent(workspace.getId(), workspaceNotiIds));
     }
 }

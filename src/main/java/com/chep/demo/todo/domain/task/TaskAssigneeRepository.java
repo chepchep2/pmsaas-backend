@@ -1,11 +1,12 @@
 package com.chep.demo.todo.domain.task;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface TaskAssigneeRepository {
+public interface TaskAssigneeRepository extends JpaRepository<TaskAssignee, Long> {
     @Query("""
             SELECT ta
             FROM TaskAssignee ta

@@ -46,6 +46,8 @@ public class NotificationCreationListener {
         this.userRepository = userRepository;
     }
 
+    // WorkspaceNotificationsCreatedEvent는 NotificationSlackEventListener에서 @TransactionalEventListener(AFTER_COMMIT)으로 처리
+    // 이 메서드의 @Transactional을 제거하면 이벤트 체인이 동작하지 않음.
     @Transactional
     @EventListener
     public void handleTaskCreated(TaskCreatedEvent event) {
@@ -90,6 +92,8 @@ public class NotificationCreationListener {
         applicationEventPublisher.publishEvent(new WorkspaceNotificationsCreatedEvent(event.workspaceId(), workspaceNotiIds));
     }
 
+    // WorkspaceNotificationsCreatedEvent는 NotificationSlackEventListener에서 @TransactionalEventListener(AFTER_COMMIT)으로 처리
+    // 이 메서드의 @Transactional을 제거하면 이벤트 체인이 동작하지 않음.
     @Transactional
     @EventListener
     public void handleTaskAssigneesChanged(TaskAssigneesChangedEvent event) {

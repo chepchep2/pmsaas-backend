@@ -1,7 +1,6 @@
 package com.chep.demo.todo.service.notification;
 
 import com.chep.demo.todo.domain.notification.Notification;
-import com.chep.demo.todo.domain.notification.NotificationRepository;
 import com.chep.demo.todo.domain.task.TaskAssignee;
 import com.chep.demo.todo.domain.task.TaskAssigneeRepository;
 import org.slf4j.Logger;

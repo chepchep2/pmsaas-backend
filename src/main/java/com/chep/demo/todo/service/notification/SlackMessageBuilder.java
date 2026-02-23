@@ -16,6 +16,7 @@ public class SlackMessageBuilder {
                 .collect(Collectors.joining(", "));
 
         return switch (notification.getType()) {
+            // TODO: 다국어 지원 시 MessageSource로 전환 필요
             case TASK_CREATED -> "[%s] New task has been created.\nTask: %s\nProject: %s\n생성자: %s\n담당자: %s".formatted(
                     notification.getWorkspace().getName(),
                     notification.getTask().getTitle(),

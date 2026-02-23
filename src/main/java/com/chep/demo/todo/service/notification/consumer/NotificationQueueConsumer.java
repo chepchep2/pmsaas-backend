@@ -5,10 +5,14 @@ import com.chep.demo.todo.service.notification.processor.NotificationProcessor;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.CountDownLatch;
 
 @Service
 public class NotificationQueueConsumer {
@@ -19,53 +23,59 @@ public class NotificationQueueConsumer {
     private final RedisTemplate<String, String> redisTemplate;
     private final NotificationProcessor notificationProcessor;
     private volatile boolean running = true;
+    private final TaskExecutor taskExecutor;
+    private final CountDownLatch latch = new CountDownLatch(1);
 
     public NotificationQueueConsumer(RedisTemplate<String, String> redisTemplate,
-                                     NotificationProcessor notificationProcessor) {
+                                     NotificationProcessor notificationProcessor,
+                                     @Qualifier("notificationExecutor") TaskExecutor taskExecutor) {
         this.redisTemplate = redisTemplate;
         this.notificationProcessor = notificationProcessor;
+        this.taskExecutor = taskExecutor;
     }
 
     public void startConsuming() {
-        while (running) {
-            try {
-                String msg = redisTemplate.opsForList().rightPopAndLeftPush(RedisKeys.NOTIFICATION_QUEUE, RedisKeys.NOTIFICATION_PROCESSING);
-
-                if (msg == null) {
-                    Thread.sleep(IDLE_SLEEP_MS);
-                    continue;
-                }
-
-                Long id = Long.parseLong(msg);
-                notificationProcessor.process(id);
-
-                redisTemplate.opsForList().remove(RedisKeys.NOTIFICATION_PROCESSING, 1, msg);
-
-                Thread.sleep(SEND_INTERVALS_MS);
-            } catch (Exception e) {
-                log.error("Error consuming notification queue", e);
+        try {
+            while (running) {
                 try {
-                    Thread.sleep(ERROR_BACKOFF_MS);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
+                    String msg = redisTemplate.opsForList().rightPopAndLeftPush(RedisKeys.NOTIFICATION_QUEUE, RedisKeys.NOTIFICATION_PROCESSING);
+
+                    if (msg == null) {
+                        Thread.sleep(IDLE_SLEEP_MS);
+                        continue;
+                    }
+
+                    Long id = Long.parseLong(msg);
+                    notificationProcessor.process(id);
+
+                    redisTemplate.opsForList().remove(RedisKeys.NOTIFICATION_PROCESSING, 1, msg);
+
+                    Thread.sleep(SEND_INTERVALS_MS);
+                } catch (Exception e) {
+                    log.error("Error consuming notification queue", e);
+                    try {
+                        Thread.sleep(ERROR_BACKOFF_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
+        } finally {
+            latch.countDown();
         }
     }
-    private Thread consumerThread;
 
     @EventListener(ApplicationReadyEvent.class)
     public void startOnApplicationReady() {
         recoverProcessingQueue();
-        consumerThread = new Thread(this::startConsuming, "notification-consumer");
-        consumerThread.start();
+        taskExecutor.execute(this::startConsuming);
     }
 
     @PreDestroy
     public void stop(){
         running = false;
         try {
-            consumerThread.join();
+            latch.await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

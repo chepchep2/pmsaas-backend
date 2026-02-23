@@ -10,9 +10,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-
 @Service
 public class NotificationQueueConsumer {
     private static final Logger log = LoggerFactory.getLogger(NotificationQueueConsumer.class);
@@ -27,11 +24,6 @@ public class NotificationQueueConsumer {
                                      NotificationProcessor notificationProcessor) {
         this.redisTemplate = redisTemplate;
         this.notificationProcessor = notificationProcessor;
-    }
-
-    @PreDestroy
-    public void stop() {
-        running = false;
     }
 
     public void startConsuming() {
@@ -60,9 +52,34 @@ public class NotificationQueueConsumer {
             }
         }
     }
+    private Thread consumerThread;
 
     @EventListener(ApplicationReadyEvent.class)
     public void startOnApplicationReady() {
-        new Thread(this::startConsuming, "notification-consumer").start();
+        recoverProcessingQueue();
+        consumerThread = new Thread(this::startConsuming, "notification-consumer");
+        consumerThread.start();
+    }
+
+    @PreDestroy
+    public void stop(){
+        running = false;
+        try {
+            consumerThread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void recoverProcessingQueue() {
+        Long size = redisTemplate.opsForList().size(RedisKeys.NOTIFICATION_PROCESSING);
+        long remainingQueue = size != null ? size : 0L;
+        if (remainingQueue > 0) {
+            log.info("Recovering {} messages from processing queue", remainingQueue);
+        }
+        while (remainingQueue != 0) {
+            redisTemplate.opsForList().rightPopAndLeftPush(RedisKeys.NOTIFICATION_PROCESSING, RedisKeys.NOTIFICATION_QUEUE);
+            remainingQueue--;
+        }
     }
 }

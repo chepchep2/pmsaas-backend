@@ -34,7 +34,6 @@ public class SlackService {
         this.taskAssigneeRepository = taskAssigneeRepository;
     }
 
-    @Transactional
     public void sendNotification(Long notificationId) {
         Instant now = Instant.now(clock);
         Optional<Notification> optionalNotification = notificationStateService.getSendingNotification(notificationId);

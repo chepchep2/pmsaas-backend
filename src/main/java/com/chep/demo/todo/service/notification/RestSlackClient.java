@@ -1,5 +1,7 @@
 package com.chep.demo.todo.service.notification;
 
+import com.chep.demo.todo.exception.notification.NonRetryableSlackException;
+import com.chep.demo.todo.exception.notification.RetryableSlackException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,10 +34,14 @@ public class RestSlackClient implements SlackClient {
 
         } catch (RestClientResponseException e) {
             log.error("Slack responded with error. status={} body={}", e.getStatusCode(), e.getResponseBodyAsString(), e);
-            throw e;
+            if (e.getStatusCode().value() == 429 || e.getStatusCode().is5xxServerError()) {
+                throw new RetryableSlackException(e.getMessage());
+            } else {
+                throw new NonRetryableSlackException(e.getMessage());
+            }
         } catch (ResourceAccessException e) {
             log.error("Slack request failed due to I/O issue (timeout/connection).", e);
-            throw e;
+            throw new RetryableSlackException(e.getMessage());
         }
     }
 }

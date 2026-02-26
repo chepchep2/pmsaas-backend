@@ -1,6 +1,4 @@
-package com.chep.demo.todo.domain.workspace;
-
-import com.chep.demo.todo.domain.notification.Notification;
+package com.chep.demo.todo.domain.notification;
 
 import java.time.Instant;
 import java.util.List;

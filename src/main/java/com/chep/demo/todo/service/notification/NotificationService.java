@@ -1,7 +1,7 @@
 package com.chep.demo.todo.service.notification;
 
 import com.chep.demo.todo.domain.notification.Notification;
-import com.chep.demo.todo.domain.workspace.NotificationQueryRepository;
+import com.chep.demo.todo.domain.notification.NotificationQueryRepository;
 import com.chep.demo.todo.domain.workspace.Workspace;
 import com.chep.demo.todo.domain.workspace.WorkspaceRepository;
 import com.chep.demo.todo.dto.notification.NotificationItemResponse;
@@ -38,27 +38,7 @@ public class NotificationService {
         List<Notification> notifications = notificationQueryRepository.findUserNotifications(
                 userId, workspaceId, cursorCreatedAt, cursorNotificationId, limit + 1);
 
-        boolean hasNext = notifications.size() > limit;
-        List<Notification> result = hasNext ? notifications.subList(0, limit) : notifications;
-
-        Instant nextCursorCreatedAt = null;
-        Long nextCursorId = null;
-
-        if (hasNext && !result.isEmpty()) {
-            Notification last = result.getLast();
-            nextCursorCreatedAt = last.getCreatedAt();
-            nextCursorId = last.getId();
-        }
-
-        List<NotificationItemResponse> mapped = result.stream()
-                .map(n -> new NotificationItemResponse(
-                        n.getId(),
-                        n.getType().name(),
-                        n.getTask().getTitle(),
-                        n.getCreatedAt()
-                )).toList();
-
-        return new NotificationResponse(mapped, hasNext, nextCursorCreatedAt, nextCursorId);
+        return buildResponse(notifications, limit);
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +49,10 @@ public class NotificationService {
 
         List<Notification> notifications = notificationQueryRepository.findWorkspaceNotifications(workspaceId, cursorCreatedAt, cursorNotificationId, limit + 1);
 
+        return buildResponse(notifications, limit);
+    }
+
+    private NotificationResponse buildResponse(List<Notification> notifications, int limit) {
         boolean hasNext = notifications.size() > limit;
         List<Notification> result = hasNext ? notifications.subList(0, limit) : notifications;
 

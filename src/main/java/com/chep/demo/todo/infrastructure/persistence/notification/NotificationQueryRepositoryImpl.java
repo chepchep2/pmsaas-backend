@@ -3,7 +3,7 @@ package com.chep.demo.todo.infrastructure.persistence.notification;
 
 import com.chep.demo.todo.domain.notification.Notification;
 import com.chep.demo.todo.domain.notification.RecipientType;
-import com.chep.demo.todo.domain.workspace.NotificationQueryRepository;
+import com.chep.demo.todo.domain.notification.NotificationQueryRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import org.springframework.stereotype.Repository;

@@ -160,7 +160,11 @@ public class NotificationQueueConsumer {
         if (retryCount <= 3) {
             log.warn("Retryable slack error. id={} retryCount={}", id, retryCount);
             notificationStateService.markPending(id);
-            redisTemplate.opsForList().leftPush(RedisKeys.RETRY_QUEUE, msg);
+            try {
+                redisTemplate.opsForList().leftPush(RedisKeys.RETRY_QUEUE, msg);
+            } catch (Exception e) {
+                log.error("RETRY_QUEUE 삽입 실. id={}", id, e);
+            }
         } else {
             log.error("Max retry exceeded. id={}", id);
             notificationStateService.markFailed(id);

@@ -2,6 +2,7 @@ package com.chep.demo.todo.infrastructure.persistence.notification;
 
 
 import com.chep.demo.todo.domain.notification.Notification;
+import com.chep.demo.todo.domain.notification.RecipientType;
 import com.chep.demo.todo.domain.workspace.NotificationQueryRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -27,12 +28,12 @@ public class NotificationQueryRepositoryImpl implements NotificationQueryReposit
                 SELECT n
                 FROM Notification n
                 JOIN FETCH n.task t
-                WHERE n.recipientType = 'USER'
+                WHERE n.recipientType = :recipientType
                 AND n.recipientId = :userId
                 """);
 
         if (hasWorkspaceId) {
-            jpql.append("AND n.workspaceId = :workspaceId\n");
+            jpql.append("AND n.workspace.id = :workspaceId\n");
         }
         if (hasCursor) {
             jpql.append("""
@@ -44,6 +45,7 @@ public class NotificationQueryRepositoryImpl implements NotificationQueryReposit
 
         TypedQuery<Notification> query = em.createQuery(jpql.toString(), Notification.class);
         query.setParameter("userId", userId);
+        query.setParameter("recipientType", RecipientType.USER);
         if (hasWorkspaceId) query.setParameter("workspaceId", workspaceId);
         if (hasCursor) {
             query.setParameter("cursorCreatedAt", cursorCreatedAt);

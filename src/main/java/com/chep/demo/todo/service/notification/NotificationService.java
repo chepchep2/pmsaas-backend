@@ -1,12 +1,12 @@
 package com.chep.demo.todo.service.notification;
 
 import com.chep.demo.todo.domain.notification.Notification;
+import com.chep.demo.todo.domain.workspace.NotificationQueryRepository;
 import com.chep.demo.todo.domain.workspace.Workspace;
 import com.chep.demo.todo.domain.workspace.WorkspaceRepository;
 import com.chep.demo.todo.dto.notification.NotificationItemResponse;
 import com.chep.demo.todo.dto.notification.NotificationResponse;
 import com.chep.demo.todo.exception.workspace.WorkspaceNotFoundException;
-import com.chep.demo.todo.infrastructure.persistence.notification.NotificationQueryRepositoryImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,11 +17,11 @@ import java.util.List;
 @Transactional
 public class NotificationService {
     private final WorkspaceRepository workspaceRepository;
-    private final NotificationQueryRepositoryImpl notificationQueryRepository;
+    private final NotificationQueryRepository notificationQueryRepository;
 
     public NotificationService(
             WorkspaceRepository workspaceRepository,
-            NotificationQueryRepositoryImpl notificationQueryRepository
+            NotificationQueryRepository notificationQueryRepository
     ) {
         this.workspaceRepository = workspaceRepository;
         this.notificationQueryRepository = notificationQueryRepository;

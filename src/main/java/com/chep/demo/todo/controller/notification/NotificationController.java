@@ -48,13 +48,4 @@ public class NotificationController {
         NotificationResponse response = notificationService.getWorkspaceNotifications(userId, workspaceId, cursorCreatedAt, cursorNotificationId, limit);
         return ResponseEntity.ok(response);
     }
-
-    private NotificationItemResponse toResponse(Notification notification) {
-        return new NotificationItemResponse(
-                notification.getId(),
-                notification.getType().name(),
-                notification.getTask().getTitle(),
-                notification.getCreatedAt()
-        );
-    }
 }

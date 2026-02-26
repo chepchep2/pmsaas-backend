@@ -54,4 +54,13 @@ public class NotificationStateService {
         Notification noti = optionalNotification.get();
         noti.markFailed();
     }
+
+    public void markPending(Long notificationId) {
+        Optional<Notification> optionalNotification = notificationRepository.findById(notificationId);
+        if (optionalNotification.isEmpty()) {
+            return;
+        }
+        Notification noti = optionalNotification.get();
+        noti.markPending();
+    }
 }

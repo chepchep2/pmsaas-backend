@@ -40,6 +40,7 @@ public class NotificationStateService {
         log.info("markSent called: {}", notificationId);
         Optional<Notification> optionalNotification = notificationRepository.findById(notificationId);
         if (optionalNotification.isEmpty()) {
+            log.warn("Notification not found for markSent: {}", notificationId);
             return;
         }
         Notification noti = optionalNotification.get();
@@ -49,6 +50,7 @@ public class NotificationStateService {
     public void markFailed(Long notificationId) {
         Optional<Notification> optionalNotification = notificationRepository.findById(notificationId);
         if (optionalNotification.isEmpty()) {
+            log.warn("Notification not found for markFailed: {}", notificationId);
             return;
         }
         Notification noti = optionalNotification.get();

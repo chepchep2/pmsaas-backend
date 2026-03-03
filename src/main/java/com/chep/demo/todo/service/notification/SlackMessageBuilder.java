@@ -17,19 +17,19 @@ public class SlackMessageBuilder {
 
         return switch (notification.getType()) {
             // TODO: 다국어 지원 시 MessageSource로 전환 필요
-            case TASK_CREATED -> "[%s] New task has been created.\nTask: %s\nProject: %s\n생성자: %s\n담당자: %s".formatted(
+            case TASK_CREATED -> "[%s] New task has been created.\nTask: %s\nProject: %s\nCreator: %s\nAssignee: %s".formatted(
                     notification.getWorkspace().getName(),
                     notification.getTask().getTitle(),
                     notification.getProject().getName(),
                     notification.getActor().getName(),
-                    assigneeNames.isEmpty() ? "없음" : assigneeNames
+                    assigneeNames.isEmpty() ? "None" : assigneeNames
             );
-            case TASK_ASSIGNEES_CHANGED -> "[%s] Task assignees have been updated.\nTask: %s\nProject: %s\n변경자: %s\n담당자: %s".formatted(
+            case TASK_ASSIGNEES_CHANGED -> "[%s] Task assignees have been updated.\nTask: %s\nProject: %s\nModifier: %s\nAssignee: %s".formatted(
                     notification.getWorkspace().getName(),
                     notification.getTask().getTitle(),
                     notification.getProject().getName(),
                     notification.getActor().getName(),
-                    assigneeNames.isEmpty() ? "없음" : assigneeNames
+                    assigneeNames.isEmpty() ? "None" : assigneeNames
             );
         };
     }

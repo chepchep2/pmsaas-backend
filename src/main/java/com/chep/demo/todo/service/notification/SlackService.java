@@ -3,6 +3,8 @@ package com.chep.demo.todo.service.notification;
 import com.chep.demo.todo.domain.notification.Notification;
 import com.chep.demo.todo.domain.task.TaskAssignee;
 import com.chep.demo.todo.domain.task.TaskAssigneeRepository;
+import com.chep.demo.todo.exception.notification.NonRetryableSlackException;
+import com.chep.demo.todo.exception.notification.RetryableSlackException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -49,9 +51,12 @@ public class SlackService {
         try {
             slackClient.send(message);
             notificationStateService.markSent(notificationId, now);
+        } catch (RetryableSlackException | NonRetryableSlackException e) {
+            log.error("Failed to send Slack notification. notificationId={}", notificationId, e);
+            throw e;
         } catch (Exception e) {
             log.error("Failed to send Slack notification. notificationId={}", notificationId, e);
-            notificationStateService.markFailed(notificationId);
+            throw new RetryableSlackException(e.getMessage());
         }
     }
 }

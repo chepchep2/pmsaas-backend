@@ -160,6 +160,11 @@ public class Notification {
         this.status = NotificationStatus.FAILED;
     }
 
+    public void markPending() {
+        requireSending();
+        this.status = NotificationStatus.PENDING;
+    }
+
     private void requirePending() {
         if (this.status != NotificationStatus.PENDING) {
             throw new NotificationStateException("Only PENDING notifications can be marked as SENDING");

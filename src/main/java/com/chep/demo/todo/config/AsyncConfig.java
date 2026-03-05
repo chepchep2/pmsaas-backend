@@ -2,7 +2,6 @@ package com.chep.demo.todo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -16,6 +15,8 @@ public class AsyncConfig implements AsyncConfigurer {
     private static final int MAIL_CORE_POOL_SIZE = 8;
     private static final int MAIL_MAX_POOL_SIZE = 16;
     private static final int MAIL_QUEUE_CAPACITY = 500;
+    private static final int NOTIFICATION_CORE_POOL_SIZE = 2;
+    private static final int NOTIFICATION_MAX_POOL_SIZE = 2;
 
     @Bean(name = "mailExecutor")
     public Executor mailExecutor() {
@@ -35,8 +36,11 @@ public class AsyncConfig implements AsyncConfigurer {
 
     @Bean(name = "notificationExecutor")
     public TaskExecutor notificationExecutor() {
-        SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor();
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(NOTIFICATION_CORE_POOL_SIZE);
+        executor.setMaxPoolSize(NOTIFICATION_MAX_POOL_SIZE);
         executor.setThreadNamePrefix("notification-consumer");
+        executor.initialize();
         return executor;
     }
 

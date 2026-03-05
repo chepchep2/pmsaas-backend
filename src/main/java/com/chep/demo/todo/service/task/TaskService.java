@@ -60,7 +60,7 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<Task> getTasks(Long userId) {
-        return taskRepository.findAllByUserIdOrderByOrderIndexAsc(userId);
+        return taskRepository.findAllByUserIdOrderByOrderIndexAscFetch(userId);
     }
 
     @Transactional(readOnly = true)

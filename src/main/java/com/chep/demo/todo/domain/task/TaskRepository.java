@@ -8,7 +8,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
-    List<Task> findAllByUserIdOrderByOrderIndexAsc(Long userId);
+    @Query("""
+        SELECT DISTINCT t
+        FROM Task t
+        LEFT JOIN FETCH t.assignees a
+        LEFT JOIN FETCH a.user u
+        WHERE t.user.id = :userId
+        ORDER BY t.orderIndex ASC
+        """)
+    List<Task> findAllByUserIdOrderByOrderIndexAscFetch(@Param("userId") Long userId);
     Optional<Task> findByIdAndUserId(Long id, Long userId);
     Long countByProjectId(Long projectId);
     List<Task> findByUserIdAndOrderIndexBetween(Long userId, int start, int end);

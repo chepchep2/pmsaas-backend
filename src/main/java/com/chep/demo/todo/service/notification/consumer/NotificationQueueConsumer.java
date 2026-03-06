@@ -48,6 +48,7 @@ public class NotificationQueueConsumer {
                 String msg = null;
                 Long id = null;
                 try {
+                    // TODO: 현재 RPOPLPUSH + Thread.sleep 폴링 방식. 큐가 빌 때 CPU 낭비를 줄이려면 BRPOPLPUSH(blocking, timeout) 방식으로 교체
                     msg = redisTemplate.opsForList().rightPopAndLeftPush(RedisKeys.NOTIFICATION_QUEUE, RedisKeys.NOTIFICATION_PROCESSING);
 
                     if (msg == null) {

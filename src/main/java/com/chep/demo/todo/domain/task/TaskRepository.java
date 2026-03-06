@@ -28,6 +28,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             "WHERE t.project.workspace.id = :workspaceId " +
             "ORDER BY t.project.id, t.orderIndex")
     List<Task> findAllByWorkspaceId(@Param("workspaceId") Long workspaceId);
+
+    // TODO: assignee 수가 늘어날 경우 TaskAssigneeRepository.findAssigneesWithUser로 쿼리 분리 고려
     @Query("""
             SELECT DISTINCT t
             FROM Task t

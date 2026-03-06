@@ -8,7 +8,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
-    List<Task> findAllByUserIdOrderByOrderIndexAsc(Long userId);
+    @Query("""
+        SELECT DISTINCT t
+        FROM Task t
+        LEFT JOIN FETCH t.assignees a
+        LEFT JOIN FETCH a.user u
+        WHERE t.user.id = :userId
+        ORDER BY t.orderIndex ASC
+        """)
+    List<Task> findAllByUserIdOrderByOrderIndexAscFetch(@Param("userId") Long userId);
     Optional<Task> findByIdAndUserId(Long id, Long userId);
     Long countByProjectId(Long projectId);
     List<Task> findByUserIdAndOrderIndexBetween(Long userId, int start, int end);
@@ -23,6 +31,19 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             ORDER BY t.project.id, t.orderIndex
             """)
     List<Task> findAllByWorkspaceId(@Param("workspaceId") Long workspaceId);
+
+    // TODO: assignee 수가 늘어날 경우 TaskAssigneeRepository.findAssigneesWithUser로 쿼리 분리 고려
+    @Query("""
+            SELECT DISTINCT t
+            FROM Task t
+            JOIN FETCH t.project p
+            JOIN FETCH p.workspace w
+            JOIN FETCH t.user u
+            LEFT JOIN FETCH t.assignees a
+            LEFT JOIN FETCH a.user au
+            WHERE t.id = :taskId
+            """)
+    Optional<Task> findByIdWithDetails(Long taskId);
 
     default void softDelete(Task task) {
         task.markDeleted();

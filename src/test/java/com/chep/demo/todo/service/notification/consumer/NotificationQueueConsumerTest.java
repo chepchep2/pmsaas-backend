@@ -1,6 +1,7 @@
 package com.chep.demo.todo.service.notification.consumer;
 
 import com.chep.demo.todo.exception.notification.RetryableSlackException;
+import com.chep.demo.todo.service.RedisKeys;
 import com.chep.demo.todo.service.notification.NotificationStateService;
 import com.chep.demo.todo.service.notification.processor.NotificationProcessor;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ public class NotificationQueueConsumerTest {
     private NotificationQueueConsumer consumer;
 
     @Test
-    void startConsuming_whenMessageExists_callsProcessor() {
+    void consumeLoop_whenMessageExists_callsProcessor() {
         // 1. 준비
         ListOperations<String, String> listOps = mock(ListOperations.class);
         when(redisTemplate.opsForList()).thenReturn(listOps);
@@ -47,13 +48,13 @@ public class NotificationQueueConsumerTest {
             return null;
         }).when(notificationProcessor).process(1L);
         // 2. 실행
-        consumer.startConsuming();
+        consumer.consumeLoop(RedisKeys.NOTIFICATION_QUEUE, 200);
         // 3. 검증
         verify(notificationProcessor).process(1L);
     }
 
     @Test
-    void startConsuming_whenRetryableException_pushesToRetryQueue() {
+    void consumeLoop_whenRetryableException_pushesToRetryQueue() {
         // 1. 준비
         ListOperations<String, String> listOps = mock(ListOperations.class);
         ValueOperations<String, String> valueOps = mock(ValueOperations.class);
@@ -71,14 +72,14 @@ public class NotificationQueueConsumerTest {
             throw new RetryableSlackException("slack error");
         }).when(notificationProcessor).process(1L);
         // 2. 실행
-        consumer.startConsuming();
+        consumer.consumeLoop(RedisKeys.NOTIFICATION_QUEUE, 200);
         // 3. 검증
         verify(listOps).leftPush(any(), eq("1"));
         verify(notificationStateService).markPending(1L);
     }
 
     @Test
-    void startConsuming_whenRetryCountExceeded_marsFailed() {
+    void consumeLoop_whenRetryCountExceeded_marksFailed() {
         // 1. 준비
         ListOperations<String, String> listOps = mock(ListOperations.class);
         ValueOperations<String, String> valueOps = mock(ValueOperations.class);
@@ -97,7 +98,7 @@ public class NotificationQueueConsumerTest {
         }).when(notificationProcessor).process(1L);
 
         // 2. 실행
-        consumer.startConsuming();
+        consumer.consumeLoop(RedisKeys.NOTIFICATION_QUEUE, 200);
 
         // 3. 검증
         verify(notificationStateService).markFailed(1L);

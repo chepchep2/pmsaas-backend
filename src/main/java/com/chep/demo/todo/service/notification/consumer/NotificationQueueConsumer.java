@@ -42,14 +42,14 @@ public class NotificationQueueConsumer {
         this.notificationStateService = notificationStateService;
     }
 
-    public void startConsuming() {
+    void consumeLoop(String sourceQueue, int intervalMs) {
         try {
             while (running) {
                 String msg = null;
                 Long id = null;
                 try {
                     // TODO: 현재 RPOPLPUSH + Thread.sleep 폴링 방식. 큐가 빌 때 CPU 낭비를 줄이려면 BRPOPLPUSH(blocking, timeout) 방식으로 교체
-                    msg = redisTemplate.opsForList().rightPopAndLeftPush(RedisKeys.NOTIFICATION_QUEUE, RedisKeys.NOTIFICATION_PROCESSING);
+                    msg = redisTemplate.opsForList().rightPopAndLeftPush(sourceQueue, RedisKeys.NOTIFICATION_PROCESSING);
 
                     if (msg == null) {
                         Thread.sleep(IDLE_SLEEP_MS);
@@ -59,47 +59,7 @@ public class NotificationQueueConsumer {
                     id = Long.parseLong(msg);
                     notificationProcessor.process(id);
 
-                    Thread.sleep(SEND_INTERVALS_MS);
-                } catch (RetryableSlackException e) {
-                    handleRetryableFailure(id, msg);
-                } catch (NonRetryableSlackException e) {
-                    log.error("Non-retryable slack error. id={}", id, e);
-                    notificationStateService.markFailed(id);
-                } catch (Exception e) {
-                    log.error("Error consuming notification queue", e);
-                    try {
-                        Thread.sleep(ERROR_BACKOFF_MS);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
-                } finally {
-                    if (msg != null) {
-                        redisTemplate.opsForList().remove(RedisKeys.NOTIFICATION_PROCESSING, 1, msg);
-                    }
-                }
-            }
-        } finally {
-            latch.countDown();
-        }
-    }
-
-    public void startRetryConsuming() {
-        try {
-            while (running) {
-                String msg = null;
-                Long id = null;
-                try {
-                    msg = redisTemplate.opsForList().rightPopAndLeftPush(RedisKeys.RETRY_QUEUE, RedisKeys.NOTIFICATION_PROCESSING);
-
-                    if (msg == null) {
-                        Thread.sleep(IDLE_SLEEP_MS);
-                        continue;
-                    }
-
-                    id = Long.parseLong(msg);
-                    notificationProcessor.process(id);
-
-                    Thread.sleep(RETRY_INTERVALS_MS);
+                    Thread.sleep(intervalMs);
                 } catch (RetryableSlackException e) {
                     handleRetryableFailure(id, msg);
                 } catch (NonRetryableSlackException e) {
@@ -126,15 +86,17 @@ public class NotificationQueueConsumer {
     @EventListener(ApplicationReadyEvent.class)
     public void startOnApplicationReady() {
         recoverProcessingQueue();
-        taskExecutor.execute(this::startConsuming);
-        taskExecutor.execute(this::startRetryConsuming);
+        taskExecutor.execute(() -> consumeLoop(RedisKeys.NOTIFICATION_QUEUE, SEND_INTERVALS_MS));
+        taskExecutor.execute(() -> consumeLoop(RedisKeys.RETRY_QUEUE, RETRY_INTERVALS_MS));
     }
 
     @PreDestroy
     public void stop(){
         running = false;
         try {
-            latch.await();
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                log.warn("Consumer threads did not finish within 10s");
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -160,11 +122,12 @@ public class NotificationQueueConsumer {
         }
         if (retryCount <= 3) {
             log.warn("Retryable slack error. id={} retryCount={}", id, retryCount);
+            // TODO: markPending -> leftPush 사이 crash 시 유실. @Scheduled로 5분 이상 PENDING인 알림 재삽입 스케줄러 추가 필요
             notificationStateService.markPending(id);
             try {
                 redisTemplate.opsForList().leftPush(RedisKeys.RETRY_QUEUE, msg);
             } catch (Exception e) {
-                log.error("RETRY_QUEUE 삽입 id={}", id, e);
+                log.error("Failed to push to RETRY_QUEUE. id={}", id, e);
             }
         } else {
             log.error("Max retry exceeded. id={}", id);

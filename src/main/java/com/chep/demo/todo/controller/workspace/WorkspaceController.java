@@ -1,6 +1,6 @@
 package com.chep.demo.todo.controller.workspace;
 
-import com.chep.demo.todo.domain.workspace.UnifiedWorkspaceMember;
+import com.chep.demo.todo.common.cursor.CursorTokenUtils;
 import com.chep.demo.todo.domain.workspace.Workspace;
 import com.chep.demo.todo.domain.workspace.WorkspaceMember;
 import com.chep.demo.todo.dto.workspace.*;
@@ -16,6 +16,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Workspace", description = "Workspace 관리 API")
 @RestController
@@ -100,28 +101,39 @@ public class WorkspaceController {
     @GetMapping("/{workspaceId}/members")
     ResponseEntity<WorkspaceMemberCursorResponse> getMembers(@PathVariable Long workspaceId,
                                                              @RequestParam(required = false) WorkspaceMember.Status status,
-                                                             @RequestParam(required = false) String cursorJoinedAt,
-                                                             @RequestParam(required = false) Long cursorMemberId,
+                                                             @RequestParam(required = false) String cursor,
                                                              @RequestParam(required = false) String keyword,
                                                              @RequestParam(defaultValue = "20") int limit) {
         Long userId = currentUserId();
-        Instant cursorInstant = null;
-        if (cursorJoinedAt != null) {
-            cursorInstant = Instant.parse(cursorJoinedAt);
+        Instant cursorJoinedAt = null;
+        Long cursorMemberId = null;
+        if (cursor != null) {
+            Map<String, Object> decoded = CursorTokenUtils.decode(cursor);
+            cursorJoinedAt = Instant.parse((String) decoded.get("joinedAt"));
+            cursorMemberId = ((Number) decoded.get("id")).longValue();
         }
-        WorkspaceMemberCursorResponse responses = workspaceService.getMembers(workspaceId, userId, status, cursorInstant, cursorMemberId, keyword, limit);
+        WorkspaceMemberCursorResponse responses = workspaceService.getMembers(workspaceId, userId, status, cursorJoinedAt, cursorMemberId, keyword, limit);
         return ResponseEntity.ok(responses);
     }
 
     @Operation(summary = "워크스페이스 통합 멤버 목록", description = "해당 워크스페이스의 활성 멤버, 초대 대기 목록을 반환합니다.")
     @GetMapping("/{workspaceId}/members/unified")
     public ResponseEntity<UnifiedWorkspaceMemberCursorResponse> getUnifiedMembers(@PathVariable Long workspaceId,
-                                                          @RequestParam(required = false) Integer cursorTypePriority,
-                                                          @RequestParam(required = false) Instant cursorSortAt,
-                                                          @RequestParam(required = false) Long cursorRowId,
+                                                          @RequestParam(required = false) String cursor,
                                                           @RequestParam(required = false) String keyword,
                                                           @RequestParam(defaultValue = "20") int limit) {
         Long userId = currentUserId();
+        Integer cursorTypePriority = null;
+        Instant cursorSortAt = null;
+        Long cursorRowId = null;
+
+        if (cursor != null) {
+            Map<String, Object> decoded = CursorTokenUtils.decode(cursor);
+            cursorTypePriority = ((Number) decoded.get("typePriority")).intValue();
+            cursorSortAt = Instant.parse((String) decoded.get("sortAt"));
+            cursorRowId = ((Number) decoded.get("rowId")).longValue();
+        }
+
         UnifiedWorkspaceMemberSearchRequest request = new UnifiedWorkspaceMemberSearchRequest(
                 workspaceId,
                 cursorTypePriority,

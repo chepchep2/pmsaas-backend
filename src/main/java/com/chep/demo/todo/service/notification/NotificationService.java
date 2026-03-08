@@ -1,5 +1,6 @@
 package com.chep.demo.todo.service.notification;
 
+import com.chep.demo.todo.common.cursor.CursorTokenUtils;
 import com.chep.demo.todo.domain.notification.Notification;
 import com.chep.demo.todo.domain.notification.NotificationQueryRepository;
 import com.chep.demo.todo.domain.workspace.Workspace;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -56,13 +58,11 @@ public class NotificationService {
         boolean hasNext = notifications.size() > limit;
         List<Notification> result = hasNext ? notifications.subList(0, limit) : notifications;
 
-        Instant nextCursorCreatedAt = null;
-        Long nextCursorId = null;
+        String nextCursor = null;
 
         if (hasNext && !result.isEmpty()) {
             Notification last = result.getLast();
-            nextCursorCreatedAt = last.getCreatedAt();
-            nextCursorId = last.getId();
+            nextCursor = CursorTokenUtils.encode(Map.of("createdAt", last.getCreatedAt().toString(), "id", last.getId()));
         }
 
         List<NotificationItemResponse> mapped = result.stream()
@@ -73,6 +73,6 @@ public class NotificationService {
                         n.getCreatedAt()
                 )).toList();
 
-        return new NotificationResponse(mapped, hasNext, nextCursorCreatedAt, nextCursorId);
+        return new NotificationResponse(mapped, hasNext, nextCursor);
     }
 }

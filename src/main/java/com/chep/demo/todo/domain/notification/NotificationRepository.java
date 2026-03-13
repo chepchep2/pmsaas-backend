@@ -38,7 +38,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Query("""
             SELECT n 
             FROM Notification n
-            WHERE n.status = com.chep.demo.todo.domain.notification.NotificationStatus.PENDING AND n.createdAt < :before
+            WHERE n.status = com.chep.demo.todo.domain.notification.NotificationStatus.PENDING AND n.pendingAt < :before
             """)
     List<Notification> findStuckPendingNotifications(@Param("before") Instant before);
 }

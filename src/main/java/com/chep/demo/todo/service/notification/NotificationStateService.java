@@ -64,6 +64,6 @@ public class NotificationStateService {
             return;
         }
         Notification noti = optionalNotification.get();
-        noti.markPending();
+        noti.markPending(Instant.now(clock));
     }
 }

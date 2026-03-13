@@ -174,6 +174,11 @@ public class Notification {
         this.pendingAt = now;
     }
 
+    public void markFailedFromPending() {
+        requirePending();
+        this.status = NotificationStatus.FAILED;
+    }
+
     private void requirePending() {
         if (this.status != NotificationStatus.PENDING) {
             throw new NotificationStateException("Only PENDING notifications can be marked as SENDING");

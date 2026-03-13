@@ -15,7 +15,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             UPDATE Notification n
             SET
                 n.status = com.chep.demo.todo.domain.notification.NotificationStatus.SENDING,           
-                n.sendingStartedAt = :now
+                n.sendingStartedAt = :now,
+                n.attemptCount = n.attemptCount + 1
             WHERE
                 n.id = :notificationId
             AND

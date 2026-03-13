@@ -17,8 +17,10 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findAllByProjectIdOrderByOrderIndexAsc(Long projectId);
     List<Task> findByProjectIdAndOrderIndexGreaterThan(Long projectId, int start);
     @Query("""
-            SELECT t FROM Task t
+            SELECT DISTINCT t FROM Task t
             JOIN FETCH t.project p
+            LEFT JOIN FETCH t.assignees a
+            LEFT JOIN FETCH a.user u
             WHERE t.project.workspace.id = :workspaceId  
             ORDER BY t.project.id, t.orderIndex
             """)
@@ -28,4 +30,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         task.markDeleted();
         save(task);
     }
+
+    @Query("SELECT t.project.workspace.id FROM Task t WHERE t.id = :taskId")
+    Optional<Long> findWorkspaceIdByTaskId(@Param("taskId") Long taskId);
 }

@@ -51,10 +51,8 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<Task> getProjectTasks(Long workspaceId, Long projectId, Long userId) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found"));
-
         validateWorkspaceMember(workspaceId, userId);
+        validateWorkspaceProject(workspaceId, projectId);
         return taskRepository.findAllByProjectIdOrderByOrderIndexAsc(projectId);
     }
 
@@ -76,7 +74,7 @@ public class TaskService {
             project = projectRepository.findByWorkspaceIdAndDefaultProject(workspaceId, true)
                     .orElseThrow(() -> new ProjectNotFoundException("Default project not found"));
         } else {
-            project = projectRepository.findById(request.projectId())
+            project = projectRepository.findByIdAndWorkspaceId(request.projectId(), workspaceId)
                     .orElseThrow(() -> new ProjectNotFoundException("Project not found"));
         }
 
@@ -141,7 +139,7 @@ public class TaskService {
     public Task updateTask(Long userId, Long taskId, UpdateTaskRequest request) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found"));
-
+        validateWorkspaceMember(task.getProject().getWorkspace().getId(), userId);
         task.changeTitleAndContent(request.title(), request.content());
 
         return taskRepository.save(task);
@@ -150,6 +148,7 @@ public class TaskService {
     public void deleteTask(Long userId, Long taskId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        validateWorkspaceMember(task.getProject().getWorkspace().getId(), userId);
         Long projectId = task.getProject().getId();
 
         int deletedOrderIndex = task.getOrderIndex();
@@ -166,6 +165,7 @@ public class TaskService {
     public void toggleTaskComplete(Long userId, Long taskId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        validateWorkspaceMember(task.getProject().getWorkspace().getId(), userId);
         task.toggleComplete();
 
         taskRepository.save(task);
@@ -174,6 +174,7 @@ public class TaskService {
     public void move(Long userId, Long taskId, MoveTaskRequest request) {
         Task target = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        validateWorkspaceMember(target.getProject().getWorkspace().getId(), userId);
         Long projectId = target.getProject().getId();
 
         Integer targetOrderIndex = request.targetOrderIndex();
@@ -211,6 +212,7 @@ public class TaskService {
     public Task updateAssignees(Long userId, Long taskId, UpdateAssigneesRequest request) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        validateWorkspaceMember(task.getProject().getWorkspace().getId(), userId);
         Long workspaceId = task.getProject().getWorkspace().getId();
 
         task.changeAssignees(resolveAssignees(workspaceId, request.assigneeIds()));
@@ -229,5 +231,9 @@ public class TaskService {
         workspaceMemberRepository
                 .findByWorkspaceIdAndUserIdAndStatus(workspaceId, userId, WorkspaceMember.Status.ACTIVE)
                 .orElseThrow(() -> new WorkspaceAccessDeniedException("Access denied to this workspace"));
+    }
+
+    private void validateWorkspaceProject(Long workspaceId, Long projectId) {
+        projectRepository.findByIdAndWorkspaceId(projectId, workspaceId).orElseThrow(() -> new ProjectNotFoundException("Project not found"));
     }
 }

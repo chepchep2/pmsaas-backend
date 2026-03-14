@@ -45,7 +45,7 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public List<Task> getTasks(Long userId) {
+    public List<Task> getTasksForUser(Long userId) {
         return taskRepository.findAllByUserIdOrderByOrderIndexAsc(userId);
     }
 

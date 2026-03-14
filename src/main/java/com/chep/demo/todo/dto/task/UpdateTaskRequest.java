@@ -1,9 +1,9 @@
-package com.chep.demo.todo.dto.todo;
+package com.chep.demo.todo.dto.task;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
-public record UpdateTodoRequest(
+public record UpdateTaskRequest(
         @NotEmpty(message = "Title is required")
         String title,
         String content

@@ -9,10 +9,7 @@ import jakarta.persistence.Tuple;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.util.List;
 
 @Repository
@@ -54,6 +51,7 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
     }
 
     private String buildUnifiedMembersSql(boolean hasKeyword, boolean hasCursor) {
+        // TODO: QueryDSL 또는 JOOQ 도입 시 리팩토링 대상
         StringBuilder sql = new StringBuilder();
 
         sql.append("""
@@ -63,7 +61,8 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                        role,
                        type,
                        type_priority,
-                       sort_at
+                       sort_at,
+                       status
                     FROM (
                     SELECT 
                         wm.id AS row_id,
@@ -72,7 +71,8 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                         wm.role AS role,
                         'MEMBER' AS type,
                         :memberTypePriority AS type_priority,
-                        wm.joined_at AS sort_at
+                        wm.joined_at AS sort_at,
+                        NULL AS status
                     FROM workspace_members wm
                     LEFT JOIN users u ON wm.user_id = u.id
                     WHERE wm.workspace_id = :workspaceId
@@ -97,11 +97,12 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
                     NULL AS role,
                     'INVITATION' AS type,
                     :invitationTypePriority AS type_priority,
-                    i.created_at AS sort_at
+                    i.created_at AS sort_at,
+                    i.status status
                 FROM invitations i
                 LEFT JOIN invitation_codes ic ON i.invite_code_id = ic.id
                 WHERE ic.workspace_id = :workspaceId
-                    AND i.status = 'SENT'
+                    AND i.status IN ('PENDING', 'SENDING', 'SENT', 'FAILED')
                 """);
 
         if (hasKeyword) {
@@ -174,14 +175,15 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
     }
 
     private UnifiedWorkspaceMember mapToUnifiedMember(Tuple t) {
-        return UnifiedWorkspaceMember.fromRawStrings(
-                t.get("row_id", Long.class),
-                t.get("email", String.class),
-                t.get("name", String.class),
-                t.get("role", String.class),
-                t.get("type", String.class),
-                toInstant(t.get("sort_at"))
-        );
+        return UnifiedWorkspaceMember.builder()
+                .rowId(t.get("row_id", Long.class))
+                .email(t.get("email", String.class))
+                .name(t.get("name", String.class))
+                .roleRaw(t.get("role", String.class))
+                .typeRaw(t.get("type", String.class))
+                .sortAt(toInstant(t.get("sort_at")))
+                .statusRaw(t.get("status", String.class))
+                .build();
     }
 
     private Instant toInstant(Object obj) {
@@ -196,8 +198,7 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
         } else if (obj instanceof OffsetDateTime) {
             return ((OffsetDateTime) obj).toInstant();
         } else if (obj instanceof LocalDateTime) {
-            return ((LocalDateTime) obj).atZone(ZoneId.systemDefault())
-                    .toInstant();
+            return ((LocalDateTime) obj).atZone(ZoneOffset.UTC).toInstant();
         } else {
             throw new IllegalArgumentException(
                     "Unexpected date type for sort_at: " + obj.getClass().getName() + ", value: " + obj

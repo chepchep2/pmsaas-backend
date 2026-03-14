@@ -31,7 +31,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh").permitAll()
                         .requestMatchers("/api/auth/me").authenticated()
-                        .requestMatchers("/api/todos/**").authenticated()
+                        .requestMatchers("/api/tasks/**").authenticated()
                         .requestMatchers("/api/workspaces/**").authenticated()
                         .anyRequest().permitAll()
                 )

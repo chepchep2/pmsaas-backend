@@ -175,15 +175,15 @@ public class UnifiedWorkspaceMemberQueryRepositoryImpl implements UnifiedWorkspa
     }
 
     private UnifiedWorkspaceMember mapToUnifiedMember(Tuple t) {
-        return UnifiedWorkspaceMember.fromRawStrings(
-                t.get("row_id", Long.class),
-                t.get("email", String.class),
-                t.get("name", String.class),
-                t.get("role", String.class),
-                t.get("type", String.class),
-                toInstant(t.get("sort_at")),
-                t.get("status", String.class)
-        );
+        return UnifiedWorkspaceMember.builder()
+                .rowId(t.get("row_id", Long.class))
+                .email(t.get("email", String.class))
+                .name(t.get("name", String.class))
+                .roleRaw(t.get("role", String.class))
+                .typeRaw(t.get("type", String.class))
+                .sortAt(toInstant(t.get("sort_at")))
+                .statusRaw(t.get("status", String.class))
+                .build();
     }
 
     private Instant toInstant(Object obj) {

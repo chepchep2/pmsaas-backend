@@ -18,6 +18,7 @@ import java.util.List;
 
 @Tag(name = "Task", description = "Task 관리 API")
 @RestController
+// TODO: /api/tasks/*와 /api/workspaces/{workspaceId}/tasks 계열은 URL 구조가 달라 컨트롤러 분리 고려
 public class TaskController {
     private final TaskService taskService;
 
@@ -39,10 +40,11 @@ public class TaskController {
             @ApiResponse(responseCode = "200", description = "조회 성공")
     })
     @GetMapping("/api/tasks")
-    ResponseEntity<List<TaskResponse>> getTasks() {
+    // 워크스페이스/프로젝트 상관없이 유저의 모든 Task를 조회하기 위함
+    ResponseEntity<List<TaskResponse>> getTasksForUser() {
         Long userId = currentUserId();
 
-        List<TaskResponse> responses = taskService.getTasks(userId)
+        List<TaskResponse> responses = taskService.getTasksForUser(userId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -211,6 +213,7 @@ public class TaskController {
                 task.isCompleted(),
                 task.getOrderIndex(),
                 task.getDueDate(),
+                task.getProject().getId(),
                 task.getAssignees().stream()
                         .map(assignee -> assignee.getUser().getId())
                         .toList()

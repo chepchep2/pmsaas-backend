@@ -40,7 +40,7 @@ public class TaskAssignee {
             throw new IllegalArgumentException("user must not be null");
         }
         if (task == null) {
-            throw new IllegalArgumentException("todo must not be null");
+            throw new IllegalArgumentException("task must not be null");
         }
 
         this.user = user;

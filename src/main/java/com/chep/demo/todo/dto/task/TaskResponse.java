@@ -10,6 +10,7 @@ public record TaskResponse(
         boolean completed,
         Integer orderIndex,
         Instant dueDate,
+        Long projectId,
         List<Long> assigneeIds
 ) {
 }

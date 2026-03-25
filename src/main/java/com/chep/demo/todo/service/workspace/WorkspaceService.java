@@ -59,7 +59,7 @@ public class WorkspaceService {
         Workspace workspace = Workspace.of(owner, name, description);
         Workspace savedWorkspace = workspaceRepository.save(workspace);
         projectRepository.save(Project.defaultProject(savedWorkspace, owner));
-        return workspaceRepository.save(workspace);
+        return savedWorkspace;
     }
 
     @Transactional(readOnly = true)

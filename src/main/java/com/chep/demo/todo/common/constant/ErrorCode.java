@@ -30,4 +30,7 @@ public class ErrorCode {
 
     // User
     public static final String USER_NOT_FOUND = "USER_NOT_FOUND";
+
+    // Cursor
+    public static final String INVALID_CURSOR_TOKEN = "INVALID_CURSOR_TOKEN";
 }

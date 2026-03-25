@@ -77,6 +77,10 @@ public class Notification {
     @Column(name = "sent_at")
     private Instant sentAt;
 
+    @NotNull
+    @Column(name = "pending_at")
+    private Instant pendingAt;
+
     protected Notification() {
     }
 
@@ -87,7 +91,8 @@ public class Notification {
                          User actor,
                          Workspace workspace,
                          Project project,
-                         Instant createdAt) {
+                         Instant createdAt,
+                         Instant pendingAt) {
         this.recipientType = recipientType;
         this.recipientId = recipientId;
         this.type = type;
@@ -99,6 +104,7 @@ public class Notification {
         this.status = NotificationStatus.PENDING;
         this.attemptCount = 0;
         this.sendingStartedAt = null;
+        this.pendingAt = pendingAt;
     }
 
     public static Notification forWorkspace(NotificationType type,
@@ -115,6 +121,7 @@ public class Notification {
                 actor,
                 workspace,
                 project,
+                now,
                 now
         );
     }
@@ -134,6 +141,7 @@ public class Notification {
                 actor,
                 workspace,
                 project,
+                now,
                 now
         );
     }
@@ -160,9 +168,15 @@ public class Notification {
         this.status = NotificationStatus.FAILED;
     }
 
-    public void markPending() {
+    public void markPending(Instant now) {
         requireSending();
         this.status = NotificationStatus.PENDING;
+        this.pendingAt = now;
+    }
+
+    public void markFailedFromPending() {
+        requirePending();
+        this.status = NotificationStatus.FAILED;
     }
 
     private void requirePending() {
@@ -227,5 +241,9 @@ public class Notification {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getPendingAt() {
+        return pendingAt;
     }
 }

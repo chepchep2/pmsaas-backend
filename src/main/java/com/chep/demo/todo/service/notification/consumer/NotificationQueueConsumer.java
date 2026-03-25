@@ -1,5 +1,6 @@
 package com.chep.demo.todo.service.notification.consumer;
 
+import com.chep.demo.todo.domain.notification.Notification;
 import com.chep.demo.todo.exception.notification.NonRetryableSlackException;
 import com.chep.demo.todo.exception.notification.RetryableSlackException;
 import com.chep.demo.todo.service.RedisKeys;
@@ -15,6 +16,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -115,24 +117,16 @@ public class NotificationQueueConsumer {
     }
 
     private void handleRetryableFailure(Long id, String msg) {
-        String retryKey = RedisKeys.RETRY_COUNT_PREFIX + id;
-        Long retryCount = redisTemplate.opsForValue().increment(retryKey);
-        if (retryCount == 1) {
-            redisTemplate.expire(retryKey, 1, TimeUnit.DAYS);
-        }
-        if (retryCount <= 3) {
-            log.warn("Retryable slack error. id={} retryCount={}", id, retryCount);
-            // TODO: markPending -> leftPush 사이 crash 시 유실. @Scheduled로 5분 이상 PENDING인 알림 재삽입 스케줄러 추가 필요
+        Optional<Notification> noti = notificationStateService.getSendingNotification(id);
+        if (noti.isPresent() && noti.get().getAttemptCount() >= 3) {
+            notificationStateService.markFailed(id);
+        } else if (noti.isPresent() && noti.get().getAttemptCount() < 3) {
             notificationStateService.markPending(id);
             try {
                 redisTemplate.opsForList().leftPush(RedisKeys.RETRY_QUEUE, msg);
             } catch (Exception e) {
                 log.error("Failed to push to RETRY_QUEUE. id={}", id, e);
             }
-        } else {
-            log.error("Max retry exceeded. id={}", id);
-            notificationStateService.markFailed(id);
-            redisTemplate.delete(retryKey);
         }
     }
 }

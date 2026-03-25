@@ -3,6 +3,7 @@ package com.chep.demo.todo.exception;
 import com.chep.demo.todo.common.constant.ErrorCode;
 import com.chep.demo.todo.exception.auth.AuthenticationException;
 import com.chep.demo.todo.exception.auth.UserNotFoundException;
+import com.chep.demo.todo.exception.cursor.InvalidCursorTokenException;
 import com.chep.demo.todo.exception.invitation.InvitationValidationException;
 import com.chep.demo.todo.exception.invitation.InviteCodeExpiredException;
 import com.chep.demo.todo.exception.invitation.InviteCodeNotFoundException;
@@ -165,5 +166,13 @@ public class GlobalExceptionHandler {
                 ErrorCode.INVITATION_EXPIRED, request.getRequestURI(), e.getMessage());
         return ResponseEntity.status(HttpStatus.GONE)
                 .body(createErrorResponse(HttpStatus.GONE, ErrorCode.INVITATION_EXPIRED, e.getMessage(), request));
+    }
+
+    @ExceptionHandler(InvalidCursorTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCursorToken(InvalidCursorTokenException e, HttpServletRequest request) {
+        log.error("Invalid cursor token. errorCode={}, path={}, message={}",
+                ErrorCode.INVALID_CURSOR_TOKEN, request.getRequestURI(), e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(createErrorResponse(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_CURSOR_TOKEN, e.getMessage(), request));
     }
 }

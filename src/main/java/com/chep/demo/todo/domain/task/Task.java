@@ -1,0 +1,282 @@
+package com.chep.demo.todo.domain.task;
+
+import com.chep.demo.todo.domain.project.Project;
+import com.chep.demo.todo.domain.user.User;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.SQLRestriction;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Entity
+@Table(name = "tasks")
+@SQLRestriction("deleted_at IS NULL")
+public class Task {
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "task_id_gen")
+    @SequenceGenerator(name = "task_id_gen", sequenceName = "task_id_seq", allocationSize = 1)
+    private Long id;
+
+    @Size(max = 200)
+    @NotNull
+    @Column(name = "title", nullable = false, length = 200)
+    private String title;
+
+    @Size(max = 500)
+    @Column(name = "content", length = 500)
+    private String content;
+
+    @NotNull
+    @ColumnDefault("false")
+    @Column(name = "completed", nullable = false)
+    private boolean completed = false;
+
+    @NotNull
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @NotNull
+    @Column(name = "order_index", nullable = false)
+    private Integer orderIndex;
+
+    @Column(name = "due_date")
+    private Instant dueDate;
+
+    protected Task() {}
+
+    private Task(User user, String title, String content, Integer orderIndex, Instant dueDate, Project project) {
+        if (user == null) {
+            throw new IllegalArgumentException("user must not be null");
+        }
+
+        if (title == null) {
+            throw new IllegalArgumentException("title must not be null");
+        }
+
+        if (orderIndex == null) {
+            throw new IllegalArgumentException("orderIndex must not be null");
+        }
+
+        if (project == null) {
+            throw new IllegalArgumentException("project must not be null");
+        }
+
+        this.user = user;
+        this.title = title;
+        this.content = content;
+        this.orderIndex = orderIndex;
+        this.completed = false;
+        this.createdAt = Instant.now();
+        this.dueDate = dueDate;
+        this.updatedAt = null;
+        this.project = project;
+    }
+
+    public static class Builder {
+        private User user;
+        private String title;
+        private String content;
+        private Integer orderIndex;
+        private Instant dueDate;
+        private Project project;
+
+        public Builder user(User user) {
+            this.user = user;
+            return this;
+        }
+
+        public Builder title(String title) {
+            this.title = title;
+            return this;
+        }
+
+        public Builder content(String content) {
+            this.content = content;
+            return this;
+        }
+
+        public Builder orderIndex(Integer orderIndex) {
+            this.orderIndex = orderIndex;
+            return this;
+        }
+
+        public Builder dueDate(Instant dueDate) {
+            this.dueDate = dueDate;
+            return this;
+        }
+
+        public Builder project(Project project) {
+            this.project = project;
+            return this;
+        }
+
+        public Task build() {
+            return new Task(user, title, content, orderIndex, dueDate, project);
+        }
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TaskAssignee> assignees = new HashSet<>();
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    public void toggleComplete() {
+        this.completed = !this.completed;
+        this.updatedAt = Instant.now();
+    }
+
+    public void changeAssignees(Set<User> newUsers) {
+        if (newUsers == null) {
+            newUsers = new HashSet<>();
+        }
+
+        Set<Long> existingUserIds = this.assignees.stream()
+                .map(assignee -> assignee.getUser().getId())
+                .collect(Collectors.toSet());
+
+        Set<Long> newUserIds = newUsers.stream()
+                .map(User::getId)
+                .collect(Collectors.toSet());
+
+        this.assignees.removeIf(assignee -> !newUserIds.contains(assignee.getUser().getId()));
+
+        for (User user : newUsers) {
+            if (!existingUserIds.contains(user.getId())) {
+                TaskAssignee assignee = TaskAssignee.builder()
+                        .task(this)
+                        .user(user)
+                        .build();
+                this.assignees.add(assignee);
+            }
+        }
+
+        this.updatedAt = Instant.now();
+    }
+
+    public void changeTitleAndContent(String title, String content) {
+        if (title == null) {
+            throw new IllegalArgumentException("title must not be null");
+        }
+        this.title = title;
+        this.content = content;
+        this.updatedAt = Instant.now();
+    }
+
+    public static List<Task> reorder(Task target, int targetIndex, List<Task> affectedTasks) {
+        if (target == null) {
+            throw new IllegalArgumentException("target must not be null");
+        }
+
+        if (targetIndex < 0) {
+            throw new IllegalArgumentException("targetIndex must be non-negative");
+        }
+
+        int currentIndex = target.getOrderIndex();
+        if (targetIndex == currentIndex) {
+            return new ArrayList<>();
+        }
+
+        int delta = targetIndex < currentIndex ? 1 : -1;
+
+        List<Task> changed = new ArrayList<>();
+        if (affectedTasks != null) {
+            for (Task task : affectedTasks) {
+                task.changeOrderIndex(task.getOrderIndex() + delta);
+                changed.add(task);
+            }
+        }
+
+        target.changeOrderIndex(targetIndex);
+        changed.add(target);
+        return changed;
+    }
+
+    public void changeOrderIndex(Integer orderIndex) {
+        if (orderIndex < 0) {
+            throw new IllegalArgumentException("orderIndex must be more 0");
+        }
+
+        this.orderIndex = orderIndex;
+        this.updatedAt = Instant.now();
+    }
+
+    public void changeDueDate(Instant dueDate) {
+        this.dueDate = dueDate;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markDeleted() {
+        this.deletedAt = Instant.now();
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public Integer getOrderIndex() {
+        return orderIndex;
+    }
+
+    public Instant getDueDate() {
+        return dueDate;
+    }
+
+    public Set<TaskAssignee> getAssignees() {
+        return assignees;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public Project getProject() {
+        return project;
+    }
+}

@@ -25,9 +25,12 @@ public class ErrorCode {
     // Project
     public static final String PROJECT_NOT_FOUND = "PROJECT_NOT_FOUND";
 
-    // Todo
-    public static final String TODO_NOT_FOUND = "TODO_NOT_FOUND";
+    // Task
+    public static final String TASK_NOT_FOUND = "TASK_NOT_FOUND";
 
     // User
     public static final String USER_NOT_FOUND = "USER_NOT_FOUND";
+
+    // Cursor
+    public static final String INVALID_CURSOR_TOKEN = "INVALID_CURSOR_TOKEN";
 }

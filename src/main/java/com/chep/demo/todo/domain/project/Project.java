@@ -130,7 +130,7 @@ public class Project {
         return Project.builder()
                 .workspace(personalWorkspace)
                 .createdBy(owner)
-                .name("Personal Project")
+                .name("Default Project")
                 .description("Default project")
                 .defaultProject(true)
                 .build();

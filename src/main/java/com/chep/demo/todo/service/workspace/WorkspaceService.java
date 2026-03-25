@@ -1,5 +1,8 @@
 package com.chep.demo.todo.service.workspace;
 
+import com.chep.demo.todo.common.cursor.CursorTokenUtils;
+import com.chep.demo.todo.domain.project.Project;
+import com.chep.demo.todo.domain.project.ProjectRepository;
 import com.chep.demo.todo.domain.user.User;
 import com.chep.demo.todo.domain.user.UserRepository;
 import com.chep.demo.todo.domain.workspace.*;
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -27,17 +31,20 @@ public class WorkspaceService {
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository;
+    private final ProjectRepository projectRepository;
 
     public WorkspaceService(
             WorkspaceRepository workspaceRepository,
             UserRepository userRepository,
             WorkspaceMemberRepository workspaceMemberRepository,
-            UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository
+            UnifiedWorkspaceMemberQueryRepository unifiedWorkspaceMemberQueryRepository,
+            ProjectRepository projectRepository
     ) {
         this.workspaceRepository = workspaceRepository;
         this.userRepository = userRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.unifiedWorkspaceMemberQueryRepository = unifiedWorkspaceMemberQueryRepository;
+        this.projectRepository = projectRepository;
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +57,9 @@ public class WorkspaceService {
                 .orElseThrow(() -> new WorkspaceOwnerNotFoundException("Owner not found."));
 
         Workspace workspace = Workspace.of(owner, name, description);
-        return workspaceRepository.save(workspace);
+        Workspace savedWorkspace = workspaceRepository.save(workspace);
+        projectRepository.save(Project.defaultProject(savedWorkspace, owner));
+        return savedWorkspace;
     }
 
     @Transactional(readOnly = true)
@@ -199,43 +208,37 @@ public class WorkspaceService {
                         m.getStatusChangedAt()
                 )).toList();
 
-        Instant cursorJoinedAt = null;
-        Long cursorMemberId = null;
+        String nextCursor = null;
 
         if (hasNext && !resultMembers.isEmpty()) {
             WorkspaceMember lastMember = resultMembers.getLast();
-            cursorJoinedAt = lastMember.getJoinedAt();
-            cursorMemberId = lastMember.getId();
+            nextCursor = CursorTokenUtils.encode(Map.of("joinedAt", lastMember.getUser().toString(), "id", lastMember.getId()));
         }
 
         return new WorkspaceMemberCursorResponse(
                 memberResponses,
                 hasNext,
-                cursorJoinedAt,
-                cursorMemberId
+                nextCursor
         );
     }
 
     private UnifiedWorkspaceMemberCursorResponse toResponseWithCursor(List<UnifiedWorkspaceMember> resultMembers, boolean hasNext) {
-
-        Integer cursorTypePriority = null;
-        Instant cursorSortAt = null;
-        Long cursorRowId = null;
+        String nextCursor = null;
 
         if (hasNext && !resultMembers.isEmpty()) {
-            UnifiedWorkspaceMember lastMember = resultMembers.get(resultMembers.size() - 1);
+            UnifiedWorkspaceMember lastMember = resultMembers.getLast();
 
-            cursorTypePriority = lastMember.getType().getPriority();
-            cursorSortAt = lastMember.getSortAt();
-            cursorRowId = lastMember.getRowId();
+            nextCursor = CursorTokenUtils.encode(Map.of(
+                    "typePriority", lastMember.getType().getPriority(),
+                    "sortAt", lastMember.getSortAt().toString(),
+                    "rowId", lastMember.getRowId()
+            ));
         }
 
         return new UnifiedWorkspaceMemberCursorResponse(
                 resultMembers,
                 hasNext,
-                cursorTypePriority,
-                cursorSortAt,
-                cursorRowId
+                nextCursor
         );
     }
 }
